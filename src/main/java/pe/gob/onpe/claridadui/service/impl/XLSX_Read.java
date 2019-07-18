@@ -8,7 +8,9 @@ package pe.gob.onpe.claridadui.service.impl;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
@@ -18,6 +20,10 @@ import pe.gob.onpe.claridadui.Constants.Mensajes;
 import pe.gob.onpe.claridadui.Constants.Validaciones;
 import pe.gob.onpe.claridadui.model.DetalleFormato;
 import pe.gob.onpe.claridadui.model.Formato;
+import pe.gob.onpe.claridadui.model.XLSX_DetailAmount;
+import pe.gob.onpe.claridadui.model.XLSX_DetailCell;
+import pe.gob.onpe.claridadui.model.XLSX_DetailRow;
+import pe.gob.onpe.claridadui.model.XLSX_DetailTable;
 import pe.gob.onpe.claridadui.service.iface.IExcelXSSFValidatorService;
 import pe.gob.onpe.claridadui.service.iface.IFormatoService;
 
@@ -34,6 +40,10 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
     JsonObject jResponseRead = new JsonObject();
     JsonArray data = new JsonArray();    
     
+    XLSX_DetailCell detail_cell = new XLSX_DetailCell();
+    XLSX_DetailRow detail_row = new XLSX_DetailRow();   
+    XLSX_DetailTable detail_table = new XLSX_DetailTable();    
+    
     @Override
     public String validate(){
         IFormatoService factory  = new FormatoService();
@@ -48,7 +58,6 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         
         return "ok";
     }
-
     //Validations
     public boolean validExcel_Sheet(XSSFWorkbook workbook, Formato format){
         boolean response = true;        
@@ -80,11 +89,17 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         for (int i = 0; i < jCordinates.size(); i++) {
             JsonObject jCordinate = jCordinates.get(i).getAsJsonObject();            
             if(jCordinate.get("isIndex").getAsBoolean()){
-                jSheetData = getTableIterator(formato, jCordinate);
+                getTableIterator(formato, jCordinate);
                 //jResponse.add(jSheetData);                
                 //JsonObject response = getSheetValidIndex(formato, jCordinates, jSheetData);                       
                 //jCordinates =  response.get("jCoordinates").getAsJsonArray();                                 
-                System.out.println("Hoja: " +  (jCordinate.get("hoja").getAsInt()) +" | "+jSheetData);                
+                System.out.println("Hoja: " +  (jCordinate.get("hoja").getAsInt()) +" | "+detail_table);    
+                
+                for (XLSX_DetailRow row : detail_table.getValueBody()) {
+                    for (XLSX_DetailCell xLSX_DetailCell : row.getValueRow()) {
+                        System.out.println(xLSX_DetailCell.isIsValidCellData()+" | "+xLSX_DetailCell.getLabelCell()+": "+xLSX_DetailCell.getValueCell());
+                    }                    
+                }
             }
         }
         
@@ -175,32 +190,16 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         jResponse.addProperty("status", success);
         jResponse.addProperty("formato", formato);
         return jResponse;        
-    }                           
-    private double getRowAmount(JsonObject rowOut, int position){                   
-        double response = 0;                
-        JsonArray aAmounts = rowOut.getAsJsonArray("amount");                        
-        for (int i = 0; i < aAmounts.size(); i++) {
-            JsonObject amount = aAmounts.get(i).getAsJsonObject();            
-            if(position == amount.get("group").getAsInt()){
-                response = amount.get("monto").getAsDouble();
-            }                         
-        }                   
-        return response;
-    }    
-    
-    
-    
-    
-    
-    
-    
-    
-    ///--------------------------------sometimes
-    private JsonObject getTableIterator(Formato formato, JsonObject coordinate){            
-        JsonObject jResponse = new JsonObject();        
-        JsonArray jdata = new JsonArray();
-        JsonArray subTotal = new JsonArray();
-        JsonArray total = new JsonArray();        
+    }                            
+
+    ///--------------------------------Iterators
+    private void getTableIterator(Formato formato, JsonObject coordinate){   
+        
+        detail_table = new XLSX_DetailTable(); 
+        List<XLSX_DetailRow> valueBody = new ArrayList<>();
+        List<XLSX_DetailRow> valueSubtotal = new ArrayList<>();
+        List<XLSX_DetailRow> valueTotal = new ArrayList<>();        
+        
         String formatName = "";                
         double sumCol1 = 0, sumCol2= 0;        
         if(coordinate.get("status").getAsBoolean()){ 
@@ -216,16 +215,17 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             Iterator<Row> rowIterator = sheet.iterator();  
             Row row;            
             while (rowIterator.hasNext()) {               
-                row = rowIterator.next();                           
-                JsonObject rowOut;                                                                 
+                row = rowIterator.next();                                                                                           
                 if (row.getRowNum() >= rowInitTable && row.getRowNum() <= rowFinTable) { //Data Table
-                    rowOut = getRowIterator(formato, hoja, row, Validaciones.T_TABLE);                                        
-                    if(rowOut.get("success").getAsBoolean()){        
-                        JsonObject cellData = rowOut.getAsJsonObject("data");
-                        jdata.add(cellData);        
-                        if(cellData.get("validCellData").getAsBoolean()){
-                            sumCol1+= getRowAmount(rowOut, 1); 
-                            sumCol2+= getRowAmount(rowOut, 2);                         
+                    getRowIterator(formato, hoja, row, Validaciones.T_TABLE);                    
+                    if(detail_row.isIsValidRow()){        
+                        valueBody.add(new XLSX_DetailRow(detail_row));
+                        sumCol1+= calc_RowAmount(1); 
+                        sumCol2+= calc_RowAmount(2);   
+                        
+                        //if(cellData.get("isValidRowData").getAsBoolean()){
+                            //sumCol1+= getRowAmount(rowOut, 1); 
+                            //sumCol2+= getRowAmount(rowOut, 2);                         
                         //CUSTOM VALIDATION -- COLOCAR AQUI VALIDACIONES ADICIONALES
 //                            validCustom_Fechas(row, formato, coordinate, jdata);
 //                            validCustom_Comprobante(row, formato, coordinate, jdata);
@@ -233,132 +233,163 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
 //                            validCustom_Ruc(row, formato, coordinate, jdata);
 //                            validCustom_Detalle(row, formato, coordinate, jdata);
 //                            validCustom_AmountUit(row, formato, coordinate, jdata);                            
-                        }                                       
+                        //}                                       
                     }                    
                 }else if(row.getRowNum() == rowSubtotal && rowSubtotal>0){  //Data Subtotal
-                    rowOut = getRowIterator(formato, hoja, row, Validaciones.T_SUBTOTAL);
-                    if(rowOut.get("success").getAsBoolean()){
-                        subTotal.add(rowOut.getAsJsonObject("data"));
+                    getRowIterator(formato, hoja, row, Validaciones.T_SUBTOTAL);
+                    if(detail_row.isIsValidRow()){
+                        valueSubtotal.add(new XLSX_DetailRow(detail_row));
                         //validData_SubTotal(row, rowOut, sumCol1, sumCol2);         
                     }                      
                 }else if(row.getRowNum() == rowTotal && rowTotal>0){  //Data Total
-                    rowOut = getRowIterator(formato, hoja, row, Validaciones.T_TOTAL);
-                    if(rowOut.get("success").getAsBoolean()){
-                        total.add(rowOut.getAsJsonObject("data"));
+                    getRowIterator(formato, hoja, row, Validaciones.T_TOTAL);
+                    if(detail_row.isIsValidRow()){
+                        valueTotal.add(new XLSX_DetailRow(detail_row));
                         //validData_Total(row, rowOut, sumCol1, sumCol2);
                     }                      
                 }                
             }            
-        }                              
-        jResponse.add("data", jdata);
-        jResponse.add("subTotal", subTotal);
-        jResponse.add("total", total);
-        jResponse.addProperty("formato", formatName); 
-        return jResponse;       
-    }     
-    private JsonObject getRowIterator(Formato formato, int position, Row row, int TypeTable){        
-        JsonObject jResponse = new JsonObject();
-        JsonObject rowResult = new JsonObject();  
-        boolean success = false;      
+        }       
         
-        JsonArray jAmount = new JsonArray();
-        
+        detail_table.setValueBody(valueBody);
+        detail_table.setValueSubtotal(valueSubtotal);
+        detail_table.setValueTotal(valueTotal);
+        detail_table.setNameFormat(formatName);    
+    }   
+    private void getRowIterator(Formato formato, int position, Row row, int TypeTable){              
+        List<XLSX_DetailCell> currentRow = new ArrayList<>();
+        List<XLSX_DetailAmount> detail_amount = new ArrayList<>();                
+        boolean isValidRow = false;
+        boolean isValidRowData = true;       
         double amountCol1 = 0, amountCol2 = 0;        
         int columnAmount1 = 0, columnAmount2 = 0;
-
         Iterator<Cell> cellIterator = row.cellIterator();  
         Cell cell;
         while (cellIterator.hasNext()) {
             cell = cellIterator.next();
-            JsonObject cellValue = getCellValue(position, cell, formato, TypeTable);                          
-            JsonObject monto = new JsonObject(); 
-            
-            if(cellValue.get("success").getAsBoolean()){
-                success = true;
-                rowResult.addProperty(cellValue.get("labelCell").getAsString(), cellValue.get("valueCell").getAsString()); 
-                rowResult.addProperty("messageCellObs", cellValue.get("messageCellObs").getAsString()); 
-                rowResult.addProperty("validCellData", cellValue.get("validCellData").getAsBoolean());
-                if(cellValue.get("validCellData").getAsBoolean()){
-                    if(cellValue.get("isSuma").getAsBoolean() ){    //Problemas con los campos permitidos en blanco agregar validacion                
-                        int order = cellValue.get("order").getAsInt();                    
+            detail_cell = new XLSX_DetailCell();
+            getCellIterator(position, cell, formato, TypeTable);                                                 
+            XLSX_DetailAmount monto = new XLSX_DetailAmount();            
+            if(detail_cell.isIsValidCell()){
+                isValidRow = true;
+                currentRow.add(new XLSX_DetailCell(detail_cell));                                
+                if(detail_cell.isIsValidCellData()){
+                    if(!detail_cell.isIsEmptyCellData() && detail_cell.isIsSumaCell()){
+                        int order = detail_cell.getOrderCell();                    
                         if(order == 0 || order == 1){
-                            amountCol1 = cellValue.get("valueCell").getAsDouble();
-                            columnAmount1 = cell.getColumnIndex();
-                            monto.addProperty("monto", amountCol1);
-                            monto.addProperty("columna", columnAmount1);
-                            monto.addProperty("group", 1);
-                            jAmount.add(monto);                
+                            amountCol1 = Double.parseDouble(detail_cell.getValueCell());
+                            columnAmount1 = cell.getColumnIndex();                            
+                            detail_amount.add(new XLSX_DetailAmount(amountCol1, columnAmount1, 1));           
                         }else if(order == 2){
-                            amountCol2 = cellValue.get("valueCell").getAsDouble();
-                            columnAmount2 = cell.getColumnIndex();
-                            monto.addProperty("monto", amountCol2);
-                            monto.addProperty("columna", columnAmount2);
-                            monto.addProperty("group", 2);
-                            jAmount.add(monto);                         
-                        }                                    
-                    }
-                
-                }
+                            amountCol2 = Double.parseDouble(detail_cell.getValueCell());
+                            columnAmount2 = cell.getColumnIndex();                            
+                            detail_amount.add(new XLSX_DetailAmount(amountCol2, columnAmount2, 2));                                                   
+                        }                      
+                    }                
+                }else{
+                    isValidRowData = false;
+                }                                              
             }                     
-        }                    
-        jResponse.add("amount", jAmount);    
-        jResponse.add("data", rowResult);
-        jResponse.addProperty("success", success);       
-        return jResponse;    
-    }    
-    private JsonObject getCellValue(int position, Cell cell, Formato formato, int typeData){
-        JsonObject jResponse = new JsonObject();
-        boolean success  = false;
+        }                            
+        detail_row.setAmountRow(detail_amount);
+        detail_row.setValueRow(currentRow);
+        detail_row.setIsValidRow(isValidRow);
+        detail_row.setIsValidRowData(isValidRowData);  
+    }        
+    private void getCellIterator(int position, Cell cell, Formato formato, int typeData){
+        boolean isValidCell  = false;
         for (DetalleFormato parameter : formato.getDetalle()) {            
             if(parameter.getProcesoDetalle()== Validaciones.FORMAT_READER && parameter.getHojaExcel() == position+1 && parameter.getTipoDato() == typeData){                                 
                 if(parameter.getColumnaExcel() == cell.getColumnIndex() && (parameter.getFilaExcel() == 0 || parameter.getFilaExcel() == cell.getRowIndex()) ){
-                    success = true;
+                    isValidCell = true;
                     String valueCell = getValueCell(cell);  
-                    JsonObject validDataCell = validCellData(cell, parameter, valueCell);                    
-                    jResponse.addProperty("validCellData", validDataCell.get("success").getAsBoolean());
-                    jResponse.addProperty("messageCellObs", validDataCell.get("messageCellObs").getAsString());
-                    jResponse.addProperty("labelCell", parameter.getNombreColumna());
-                    jResponse.addProperty("valueCell", valueCell);
-                    jResponse.addProperty("isSuma", parameter.isSuma());
-                    jResponse.addProperty("order", parameter.getOrden());
+                    validCellData(cell, parameter, valueCell);
+                    detail_cell.setLabelCell(parameter.getNombreColumna());
+                    detail_cell.setOrderCell(parameter.getOrden());
+                    detail_cell.setIsSumaCell(parameter.isSuma());
+                    detail_cell.setValueCell(valueCell);
                     break;                                
                 }
             }                       
         }         
-        jResponse.addProperty("success", success);        
-        return jResponse;
-    }   
-    public JsonObject validCellData(Cell cell, DetalleFormato parameter, String value) {  
-        JsonObject jResponse = new JsonObject();
-        String messageCellObs = "";
-        boolean success = true;         
-        
+        detail_cell.setIsValidCell(isValidCell);       
+    }        
+    private void validCellData(Cell cell, DetalleFormato parameter, String value) {  
+        String messageCellData = "";
+        boolean isValidCellData = true;
+        boolean isEmptyCellData = false;        
         String regex = parameter.getValidacion();
         String messageRegexError = parameter.getMensajeValidacion();
         String messageEmptyError = parameter.getComentario();        
-
         if (value.equalsIgnoreCase("")) {
             if (parameter.getObligatorio() == Validaciones.FORMAT_REQUIRED) {
                 cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
                 cell.setCellComment(getComentario(cell, messageEmptyError));
-                messageCellObs = messageEmptyError;
-                success = false;  
-                //validData = response; 
+                messageCellData = messageEmptyError;
+                isValidCellData = false;  
+            }else{
+                isEmptyCellData = true;
             }
         } else {
             if (regex != null && !regex.trim().isEmpty()) {
                 if (!value.matches(regex)) {
                     cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
                     cell.setCellComment(getComentario(cell, messageRegexError));
-                    messageCellObs = messageRegexError;
-                    success = false;
-                    //validData = response;
+                    messageCellData = messageRegexError;
+                    isValidCellData = false;
                 }
             }
         }           
-        jResponse.addProperty("success", success);
-        jResponse.addProperty("messageCellObs", messageCellObs); 
-        return jResponse;
-    }    
+        detail_cell.setIsValidCellData(isValidCellData);
+        detail_cell.setIsEmptyCellData(isEmptyCellData);
+        detail_cell.setMessageCellData(messageCellData);
+    }      
+        
+ 
+    ///----------------------------Cálculos
+    private double calc_RowAmount(int position){                   
+        double response = 0;                        
+        for (int i = 0; i < detail_row.getAmountRow().size(); i++) {
+            XLSX_DetailAmount amount = detail_row.getAmountRow().get(i);         
+            if(position == amount.getGroup()){
+                response = amount.getAmount();
+            }                         
+        }                   
+        return response;
+    }        
+    ///----------------------------Valid Amount
+    private void validData_SubTotal(Row row, JsonObject rowOut, double sumCol1, double sumCol2){
+        JsonArray aAmounts = rowOut.getAsJsonArray("amount"); 
+        for (int i = 0; i < aAmounts.size(); i++) {
+            JsonObject amount = aAmounts.get(i).getAsJsonObject();
+            int columna = amount.get("columna").getAsInt();
+            double monto = amount.get("monto").getAsDouble();  
+            if(i==0){
+                validData_Amount(row, columna, monto, sumCol1);
+
+            }else if(i == 1){
+                validData_Amount(row, columna, monto, sumCol2);                 
+            }                            
+        }      
+    }
+    private void validData_Total(Row row, JsonObject rowOut, double sumCol1, double sumCol2){
+        JsonArray aAmounts = rowOut.getAsJsonArray("amount"); 
+        for (int i = 0; i < aAmounts.size(); i++) {
+            JsonObject amount = aAmounts.get(i).getAsJsonObject();
+            int columna = amount.get("columna").getAsInt();
+            double monto = amount.get("monto").getAsDouble();                              
+            validData_Amount(row, columna, monto, sumCol1+sumCol2);
+        }     
+    }  
+    private void validData_Amount(Row row, int columna, double amount1, double amount2){   
+        double THRESHOLD = .1;        
+        if( !(Math.abs(amount1-amount2)<THRESHOLD) ){
+            Cell cell = row.getCell(columna);
+            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+            cell.setCellComment(getComentario(cell, Mensajes.M_INVALID_AMOUNT));                
+            //validData = false; 
+        }  
+    }      
+    
     
 }
