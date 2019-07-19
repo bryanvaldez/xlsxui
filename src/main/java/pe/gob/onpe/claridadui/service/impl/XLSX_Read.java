@@ -569,8 +569,24 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         }
     }    
     private void valid_CustomPadron(Row row, Formato formato, JsonObject coordinate, JsonArray jdata) {        
+        String documento = "";
         if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5A")){
+            for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
+                if(detailCell.getLabelCell().equalsIgnoreCase("documento") && !detailCell.isIsEmptyCellData()){
+                    documento = detailCell.getValueCell();
+                    break;
+                }                                
+            }
             
+            for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
+                if(detailCell.getLabelCell().equalsIgnoreCase("nombres") && !detailCell.isIsEmptyCellData()){
+                    
+                }else if(detailCell.getLabelCell().equalsIgnoreCase("apPaterno") && !detailCell.isIsEmptyCellData()){
+                    
+                }else if(detailCell.getLabelCell().equalsIgnoreCase("apMaterno") && !detailCell.isIsEmptyCellData()){
+                    
+                }                  
+            }            
         
         }
         
