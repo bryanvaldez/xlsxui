@@ -20,6 +20,8 @@ public class XLSX_DetailCell {
     private boolean isValidCellData;
     private boolean isEmptyCellData;
     private String messageCellData;
+    
+    private int index;
 
     public XLSX_DetailCell() {
     }
@@ -33,6 +35,7 @@ public class XLSX_DetailCell {
         this.isValidCellData = object.isValidCellData;
         this.isEmptyCellData = object.isEmptyCellData;
         this.messageCellData = object.getMessageCellData();
+        this.index = object.getIndex();
     }
 
     public boolean isIsValidCell() {
@@ -99,7 +102,13 @@ public class XLSX_DetailCell {
         this.messageCellData = messageCellData;
     }
 
+    public int getIndex() {
+        return index;
+    }
 
-    
-    
+    public void setIndex(int index) {
+        this.index = index;
+    }
+
+
 }

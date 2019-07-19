@@ -17,6 +17,10 @@ public class XLSX_DetailTable {
     private List<XLSX_DetailRow> valueBody;
     private List<XLSX_DetailRow> valueSubtotal;
     private List<XLSX_DetailRow> valueTotal;
+    private int cantValidBody;
+    private int cantInvalidBody;    
+    private int index;
+    
 
     public XLSX_DetailTable() {
     }
@@ -52,7 +56,29 @@ public class XLSX_DetailTable {
     public void setValueTotal(List<XLSX_DetailRow> valueTotal) {
         this.valueTotal = valueTotal;
     }
-    
 
+    public int getCantValidBody() {
+        return cantValidBody;
+    }
+
+    public void setCantValidBody(int cantValidBody) {
+        this.cantValidBody = cantValidBody;
+    }
+
+    public int getCantInvalidBody() {
+        return cantInvalidBody;
+    }
+
+    public void setCantInvalidBody(int cantInvalidBody) {
+        this.cantInvalidBody = cantInvalidBody;
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
+    public void setIndex(int index) {
+        this.index = index;
+    }    
     
 }

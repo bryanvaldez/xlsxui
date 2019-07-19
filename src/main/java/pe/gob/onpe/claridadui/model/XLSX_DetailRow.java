@@ -17,7 +17,8 @@ public class XLSX_DetailRow {
     private List<XLSX_DetailCell> valueRow;
     private List<XLSX_DetailAmount> amountRow;
     private boolean isValidRow;
-    private boolean isValidRowData;
+    private boolean isValidRowData;    
+    private int index;
 
     public XLSX_DetailRow() {
     }       
@@ -27,6 +28,7 @@ public class XLSX_DetailRow {
         this.amountRow = object.getAmountRow();
         this.isValidRow = object.isValidRow;
         this.isValidRowData = object.isValidRowData;
+        this.index = object.getIndex();
     }        
     
     public List<XLSX_DetailCell> getValueRow() {
@@ -59,6 +61,14 @@ public class XLSX_DetailRow {
 
     public void setIsValidRowData(boolean isValidRowData) {
         this.isValidRowData = isValidRowData;
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
+    public void setIndex(int index) {
+        this.index = index;
     }
 
 

@@ -8,11 +8,14 @@ package pe.gob.onpe.claridadui.service.impl;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -49,101 +52,69 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
     public String validate(){
         IFormatoService factory  = new FormatoService();
         Formato formato = factory.getFormato(typeFormat);         
-        boolean validExcel = validExcel_Sheet(workbook, formato);
-        
+        boolean validExcel = validExcel_Sheet(workbook, formato);        
         if(validExcel){
             data = getSheetsData(formato);
         }
-        
-        
-        
         return "ok";
-    }
-    //Validations
-    public boolean validExcel_Sheet(XSSFWorkbook workbook, Formato format){
-        boolean response = true;        
-        int countSheetValid = 0;
-        JsonArray formatSheets = new JsonParser().parse(format.getDetalleHoja()).getAsJsonArray();
-        for (int i = 0; i < formatSheets.size(); i++) {
-            JsonObject formatSheet = formatSheets.get(i).getAsJsonObject();
-            for (int j = 0; j < workbook.getNumberOfSheets(); j++) {
-                if (formatSheet.get("descripcion").getAsString().equalsIgnoreCase(workbook.getSheetName(j))) {
-                    countSheetValid++;
-                    break;
-                }
-            }
-        }
-        if(countSheetValid != formatSheets.size() ||  workbook.getNumberOfSheets() != formatSheets.size()){
-            jResponseRead.addProperty("validExcel", Boolean.FALSE);
-            jResponseRead.addProperty("msjValidExcel", Mensajes.M_INVALID_EXCEL);
-            response = false;
-        }
-        return response;
-    }          
-
+    }       
     ///--------------------------------Iterators
     private JsonArray getSheetsData(Formato formato){        
-        JsonArray jResponse = new JsonArray();         
-        JsonObject jSheetData;             
+        JsonArray jResponse = new JsonArray();                      
         JsonArray formatSheets = new JsonParser().parse(formato.getDetalleHoja()).getAsJsonArray();
-        JsonArray jCordinates = getCoordinates(formatSheets); 
-        
+        JsonArray jCordinates = getCoordinates(formatSheets);         
         for (int i = 0; i < jCordinates.size(); i++) {
             JsonObject jCordinate = jCordinates.get(i).getAsJsonObject();            
             if(jCordinate.get("isIndex").getAsBoolean()){
                 getTableIterator(formato, jCordinate);              
-                JsonObject response =getSheetValidIndex(formato, jCordinates);                       
-                jCordinates =  response.get("jCoordinates").getAsJsonArray();                                 
-                for (XLSX_DetailRow row : detail_table.getValueBody()) {
-                    for (XLSX_DetailCell xLSX_DetailCell : row.getValueRow()) {
-                        System.out.println(xLSX_DetailCell.isIsValidCellData()+" | "+xLSX_DetailCell.getLabelCell()+": "+xLSX_DetailCell.getValueCell()+"------"+xLSX_DetailCell.getMessageCellData());
-                    }                    
-                }
-                for (XLSX_DetailRow row : detail_table.getValueTotal()) {
-                    for (XLSX_DetailCell xLSX_DetailCell : row.getValueRow()) {
-                        System.out.println(xLSX_DetailCell.isIsValidCellData()+" | "+xLSX_DetailCell.getLabelCell()+": "+xLSX_DetailCell.getValueCell()+"------"+xLSX_DetailCell.getMessageCellData());
-                    }                    
-                }                
+                JsonObject response = getSheetValidIndex(formato, jCordinates);                       
+                jCordinates =  response.get("jCoordinates").getAsJsonArray();  
+                jResponse.add(build_Response());                                
             }
-        }
-        
+        }        
         for (int i = 0; i < jCordinates.size(); i++) {
             JsonObject jCordinate = jCordinates.get(i).getAsJsonObject();            
             if(!jCordinate.get("isIndex").getAsBoolean()){
-                //jSheetData = getTableIterator(formato, jCordinate);
-                //jResponse.add(jSheetData);
-                System.out.println("Hoja: " +  (jCordinate.get("hoja").getAsInt()) + " | success"); 
+                getTableIterator(formato, jCordinate);
+                jResponse.add(build_Response());
             }
-        }        
-        
+        }                
         return jResponse;
     }      
     private void getTableIterator(Formato formato, JsonObject coordinate){           
         detail_table = new XLSX_DetailTable(); 
         List<XLSX_DetailRow> valueBody = new ArrayList<>();
         List<XLSX_DetailRow> valueSubtotal = new ArrayList<>();
-        List<XLSX_DetailRow> valueTotal = new ArrayList<>();                
-        String formatName = "";                
-        double sumCol1 = 0, sumCol2= 0;        
+        List<XLSX_DetailRow> valueTotal = new ArrayList<>();                           
+        double sumCol1 = 0, sumCol2= 0;      
         if(coordinate.get("status").getAsBoolean()){ 
             int hoja = coordinate.get("hoja").getAsInt()-1;
+            detail_table.setIndex(hoja);            
             int rowInitTable = coordinate.get("initRow").getAsInt();
             int rowFinTable = coordinate.get("finRow").getAsInt();
             int rowSubtotal = coordinate.get("subtotalRow").getAsInt();
             int rowTotal = coordinate.get("totalRow").getAsInt();  
             boolean isIndex = coordinate.get("isIndex").getAsBoolean();
             
-            XSSFSheet sheet = workbook.getSheetAt(hoja);
-            formatName = sheet.getSheetName(); 
+            XSSFSheet sheet = workbook.getSheetAt(hoja);   
+            detail_table.setNameFormat(sheet.getSheetName());
             Iterator<Row> rowIterator = sheet.iterator();  
             Row row;            
             while (rowIterator.hasNext()) {               
                 row = rowIterator.next();                                                                                           
-                if (row.getRowNum() >= rowInitTable && row.getRowNum() <= rowFinTable) { //Data Table
+                if (row.getRowNum() >= rowInitTable && row.getRowNum() <= rowFinTable) { //Data Body
                     getRowIterator(formato, hoja, row, Validaciones.T_TABLE);                    
+                    calc_RowErrors(detail_row);
                     if(detail_row.isIsValidRow()){        
                         sumCol1+= calc_RowAmount(1); 
-                        sumCol2+= calc_RowAmount(2);                           
+                        sumCol2+= calc_RowAmount(2);  
+                        if(detail_row.isIsValidRowData()){
+                            valid_CustomFechas(row);
+                            valid_CustomComprobante(row);
+                            valid_CustomPadron(row);
+                        
+                        }
+                        
                         //if(cellData.get("isValidRowData").getAsBoolean()){                       
                         //CUSTOM VALIDATION -- COLOCAR AQUI VALIDACIONES ADICIONALES
 //                            validCustom_Fechas(row, formato, coordinate, jdata);
@@ -173,7 +144,6 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         detail_table.setValueBody(valueBody);
         detail_table.setValueSubtotal(valueSubtotal);
         detail_table.setValueTotal(valueTotal);
-        detail_table.setNameFormat(formatName);    
     }   
     private void getRowIterator(Formato formato, int position, Row row, int TypeTable){              
         List<XLSX_DetailCell> currentRow = new ArrayList<>();
@@ -187,8 +157,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         while (cellIterator.hasNext()) {
             cell = cellIterator.next();
             detail_cell = new XLSX_DetailCell();
-            getCellIterator(position, cell, formato, TypeTable);                                                 
-            XLSX_DetailAmount monto = new XLSX_DetailAmount();            
+            getCellIterator(position, cell, formato, TypeTable);                                                         
             if(detail_cell.isIsValidCell()){
                 isValidRow = true;
                 currentRow.add(new XLSX_DetailCell(detail_cell));                                
@@ -213,7 +182,8 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         detail_row.setAmountRow(detail_amount);
         detail_row.setValueRow(currentRow);
         detail_row.setIsValidRow(isValidRow);
-        detail_row.setIsValidRowData(isValidRowData);  
+        detail_row.setIsValidRowData(isValidRowData);
+        detail_row.setIndex(row.getRowNum());
     }        
     private void getCellIterator(int position, Cell cell, Formato formato, int typeData){
         boolean isValidCell  = false;
@@ -232,6 +202,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             }                       
         }         
         detail_cell.setIsValidCell(isValidCell);       
+        detail_cell.setIndex(cell.getColumnIndex());        
     }        
     private void validCellData(Cell cell, DetalleFormato parameter, String value) {  
         String messageCellData = "";
@@ -304,7 +275,14 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             cellData.setIsValidCellData(false);
             cellData.setMessageCellData(observation);
         }
-    }          
+    }
+    private void calc_RowErrors(XLSX_DetailRow detailRow){
+        if(detailRow.isIsValidRowData()){
+            detail_table.setCantValidBody(detail_table.getCantValidBody()+1);
+        }else{
+            detail_table.setCantInvalidBody(detail_table.getCantInvalidBody()+1);
+        }   
+    }
     //-----------------------------Cordenadas
     private JsonArray getCoordinates(JsonArray formatSheets){
         JsonArray jResponse = new JsonArray();         
@@ -381,8 +359,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         jResponse.addProperty("status", success);
         jResponse.addProperty("formato", formato);
         return jResponse;        
-    }            
- 
+    }             
     //-----------------------------Validaciones
     private JsonObject getSheetValidIndex(Formato formato, JsonArray jCordinates){        
         JsonObject jResponse = new JsonObject();                              
@@ -475,5 +452,328 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         }           
         return amount;
     }     
+    //-----------------------------Build
+    private JsonObject build_Response(){
+        JsonObject jSheetData = new JsonObject();      
+        jSheetData.addProperty("nombreFormato", detail_table.getNameFormat());
+        jSheetData.addProperty("registrosIncorrectos", detail_table.getCantValidBody());
+        jSheetData.addProperty("registrosCorrectos", detail_table.getCantInvalidBody());          
+        for (XLSX_DetailRow row : detail_table.getValueTotal()) {            
+            for (XLSX_DetailCell cellDetail : row.getValueRow()) {
+                JsonObject total = new JsonObject();
+                total.addProperty("estado", cellDetail.isIsValidCellData());
+                total.addProperty("valor", cellDetail.getValueCell());
+                total.addProperty("observacion", cellDetail.getMessageCellData());
+                jSheetData.add("montoTotal", total);
+                break;
+            }                    
+        }            
+        JsonArray subtotal = new JsonArray();        
+        for (XLSX_DetailRow row : detail_table.getValueSubtotal()) {            
+            for (XLSX_DetailCell cellDetail : row.getValueRow()) {
+                JsonObject tempSubtotal = new JsonObject();
+                tempSubtotal.addProperty("estado", cellDetail.isIsValidCellData());
+                tempSubtotal.addProperty("valor", cellDetail.getValueCell());
+                tempSubtotal.addProperty("observacion", cellDetail.getMessageCellData());
+                subtotal.add(tempSubtotal);
+            }
+            jSheetData.add("subtotal", subtotal);
+        }  
+        JsonArray dataBody = new JsonArray();
+        JsonArray dataBodyObs = new JsonArray();
+        for (XLSX_DetailRow row : detail_table.getValueBody()) {
+            JsonObject rowBody = new JsonObject();
+            JsonObject rowBodyObs = new JsonObject();
+            rowBody.addProperty("estado", row.isIsValidRowData());            
+            for (XLSX_DetailCell cellDetail : row.getValueRow()) {
+                rowBody.addProperty(cellDetail.getLabelCell(), cellDetail.getValueCell());
+                rowBodyObs.addProperty(cellDetail.getLabelCell(), cellDetail.getMessageCellData());
+            }
+            dataBody.add(rowBody);
+            dataBodyObs.add(rowBodyObs);
+        }                
+        jSheetData.add("subtotal", subtotal);
+        jSheetData.add("data", dataBody);
+        jSheetData.add("dataObs", dataBodyObs);
+        return jSheetData;
+    }    
+    
+    //Validations
+    public boolean validExcel_Sheet(XSSFWorkbook workbook, Formato format){
+        boolean response = true;        
+        int countSheetValid = 0;
+        JsonArray formatSheets = new JsonParser().parse(format.getDetalleHoja()).getAsJsonArray();
+        for (int i = 0; i < formatSheets.size(); i++) {
+            JsonObject formatSheet = formatSheets.get(i).getAsJsonObject();
+            for (int j = 0; j < workbook.getNumberOfSheets(); j++) {
+                if (formatSheet.get("descripcion").getAsString().equalsIgnoreCase(workbook.getSheetName(j))) {
+                    countSheetValid++;
+                    break;
+                }
+            }
+        }
+        if(countSheetValid != formatSheets.size() ||  workbook.getNumberOfSheets() != formatSheets.size()){
+            jResponseRead.addProperty("validExcel", Boolean.FALSE);
+            jResponseRead.addProperty("msjValidExcel", Mensajes.M_INVALID_EXCEL);
+            response = false;
+        }
+        return response;
+    }       
+    
+    
+    //Validaciones Personalizadas
+    private void valid_CustomFechas(Row row) {     
+        Date rowDate,initDate;
+        Date currentDate = new Date();        
+        try {
+            for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {
+                if(detailCell.getLabelCell().equalsIgnoreCase("fecha") && !detailCell.isIsEmptyCellData()){                    
+                    rowDate = df.parse(detailCell.getValueCell());
+                    initDate = df.parse("01/01/2018");
+                    boolean validate = rowDate.compareTo(initDate) >= 0 && rowDate.compareTo(currentDate) <= 0;
+                    if(!validate){
+                        xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_INVALID_LIMIT_DATE);
+                        detailCell.setIsValidCellData(false);
+                        detailCell.setMessageCellData(Mensajes.M_INVALID_LIMIT_DATE);
+                        detail_row.setIsValidRowData(false);                        
+                    }   
+                    break;
+                }
+            }            
+        } catch (Exception e) {
+        }
+    }
+    private void valid_CustomComprobante(Row row) {
+        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5A")){
+            String currentNumComprobante = "";
+            int currentIndexRow = detail_row.getIndex();        
+            for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {
+                if(detailCell.getLabelCell().equalsIgnoreCase("comprobante") && !detailCell.isIsEmptyCellData()){  
+                    currentNumComprobante = detailCell.getValueCell();
+                }
+            }                 
+            for (XLSX_DetailRow detailRow : detail_table.getValueBody()) {
+                if(detailRow.getIndex() != currentIndexRow){
+                    for (XLSX_DetailCell detailCell : detailRow.getValueRow()) {
+                        if(detailCell.getLabelCell().equalsIgnoreCase("comprobante") && !detailCell.isIsEmptyCellData()){
+                            if(currentNumComprobante.equalsIgnoreCase(detailCell.getValueCell())){
+                                xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_DUPLICATE_DOC);
+                                detailCell.setIsValidCellData(false);
+                                detailCell.setMessageCellData(Mensajes.M_INVALID_LIMIT_DATE);
+                                detail_row.setIsValidRowData(false);                               
+                            }
+                        }
+                    }                
+                }
+            }        
+        }
+    }    
+    private void valid_CustomPadron(Row row, Formato formato, JsonObject coordinate, JsonArray jdata) {        
+        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5A")){
+            
+        
+        }
+        
+        
+        int response = 0;
+        
+        if (coordinate.get(FORMATO).getAsString().equalsIgnoreCase("Anexo-5A")) {
+            JsonObject jRowData = jdata.get(jdata.size() - 1).getAsJsonObject();
+
+            boolean isDocumento = jRowData.get(DOCUMENTO) != null;
+            boolean isNombres = jRowData.get("nombres") != null;
+            boolean isAppat = jRowData.get("apPaterno") != null;
+            boolean isApmat = jRowData.get("apMaterno") != null;
+
+            if (isDocumento) {
+                String documento = jRowData.get(DOCUMENTO).getAsString();
+                PadronDTO padron = padronTmpService.getPadron(documento);
+                if (padron != null) {
+                    String nombres = padron.getNombres();
+                    String apPaterno = padron.getApPat();
+                    String apMaterno = padron.getApMat();
+                    if (isNombres && nombres != null) {
+                        if (!nombres.equalsIgnoreCase(jRowData.get("nombres").getAsString().trim())) {
+                            Cell cell = row.getCell(6);
+                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                            cell.setCellComment(getComentario(cell, nombres));
+                            validData = false;
+                            response++;
+                        }
+                    }
+                    if (isAppat && apPaterno != null) {
+                        if (!apPaterno.equalsIgnoreCase(jRowData.get("apPaterno").getAsString().trim())) {
+                            Cell cell = row.getCell(4);
+                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                            cell.setCellComment(getComentario(cell, apPaterno));
+                            validData = false;
+                            response++;
+                        }
+                    }
+                    if (isApmat && apMaterno != null) {
+                        if (!apMaterno.equalsIgnoreCase(jRowData.get("apMaterno").getAsString().trim())) {
+                            Cell cell = row.getCell(5);
+                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                            cell.setCellComment(getComentario(cell, apMaterno));
+                            validData = false;
+                            response++;
+                        }
+                    }
+                } else {
+                    Cell cell = row.getCell(7);
+                    cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                    cell.setCellComment(getComentario(cell, Mensajes.M_NOFOUND_DNI));
+                    validData = false;
+                    response++;
+                }
+            }
+        } else if (coordinate.get(FORMATO).getAsString().equalsIgnoreCase("Anexo-5C")) {
+            JsonObject jRowData = jdata.get(jdata.size() - 1).getAsJsonObject();
+
+            boolean isDocumento = jRowData.get(DOCUMENTO) != null;
+            boolean isNombres = jRowData.get("nombres") != null;
+            boolean isAppat = jRowData.get("apPaterno") != null;
+            boolean isApmat = jRowData.get("apMaterno") != null;
+
+            if (isDocumento) {
+                String documento = jRowData.get(DOCUMENTO).getAsString();
+                PadronDTO padron = padronTmpService.getPadron(documento);
+                if (padron != null) {
+                    String nombres = padron.getNombres();
+                    String apPaterno = padron.getApPat();
+                    String apMaterno = padron.getApMat();
+                    if (isNombres && nombres != null) {
+                        if (!nombres.equalsIgnoreCase(jRowData.get("nombres").getAsString().trim())) {
+                            Cell cell = row.getCell(7);
+                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                            cell.setCellComment(getComentario(cell, nombres));
+                            validData = false;
+                            response++;
+                        }
+                    }
+                    if (isAppat && apPaterno != null) {
+                        if (!apPaterno.equalsIgnoreCase(jRowData.get("apPaterno").getAsString().trim())) {
+                            Cell cell = row.getCell(5);
+                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                            cell.setCellComment(getComentario(cell, apPaterno));
+                            validData = false;
+                            response++;
+                        }
+                    }
+                    if (isApmat && apMaterno != null) {
+                        if (!apMaterno.equalsIgnoreCase(jRowData.get("apMaterno").getAsString().trim())) {
+                            Cell cell = row.getCell(6);
+                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                            cell.setCellComment(getComentario(cell, apMaterno));
+                            validData = false;
+                            response++;
+                        }
+                    }
+                } else {
+                    Cell cell = row.getCell(8);
+                    cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                    cell.setCellComment(getComentario(cell, Mensajes.M_NOFOUND_DNI));
+                    validData = false;
+                    response++;
+
+                }
+            }
+        } else if (coordinate.get(FORMATO).getAsString().equalsIgnoreCase("Anexo-6B")) {
+            JsonObject jRowData = jdata.get(jdata.size() - 1).getAsJsonObject();
+
+            boolean isTipoDocumento = jRowData.get("tipoDocumento") != null;
+            boolean isDocumento = jRowData.get(DOCUMENTO) != null;
+            boolean isNombres = jRowData.get("razonSocial") != null;
+
+            if (isTipoDocumento) {
+                int tipoDocumento = jRowData.get("tipoDocumento").getAsInt();
+                if (tipoDocumento == Validaciones.TYPEDOC_DNI) {
+                    if (isDocumento) {
+                        String documento = jRowData.get(DOCUMENTO).getAsString();
+                        PadronDTO padron = padronTmpService.getPadron(documento);
+                        if (padron != null) {
+                            String nombresResponse = "";
+                            if (padron.getApPat() != null) {
+                                nombresResponse += padron.getApPat();
+                            }
+                            if (padron.getApMat() != null) {
+                                nombresResponse += " " + padron.getApMat();
+                            }
+                            if (padron.getNombres() != null) {
+                                nombresResponse += " " + padron.getNombres();
+                            }
+                            if (isNombres) {
+                                if (!nombresResponse.equalsIgnoreCase(jRowData.get("razonSocial").getAsString().trim())) {
+                                    Cell cell = row.getCell(4);
+                                    cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                                    cell.setCellComment(getComentario(cell, nombresResponse));
+                                    validData = false;
+                                    response++;
+                                }
+                            }
+                        } else {
+                            Cell cell = row.getCell(6);
+                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                            cell.setCellComment(getComentario(cell, Mensajes.M_NOFOUND_DNI));
+                            validData = false;
+                            response++;
+                        }
+                    }
+                }
+            }
+        } else if (coordinate.get(FORMATO).getAsString().equalsIgnoreCase("Anexo-6C")) {
+            JsonObject jRowData = jdata.get(jdata.size() - 1).getAsJsonObject();
+
+            boolean isTipoDocumento = jRowData.get("tipoDocumento") != null;
+            boolean isDocumento = jRowData.get(DOCUMENTO) != null;
+            boolean isNombres = jRowData.get("razonSocial") != null;
+
+            if (isTipoDocumento) {
+                int tipoDocumento = jRowData.get("tipoDocumento").getAsInt();
+                if (tipoDocumento == Validaciones.TYPEDOC_DNI) {
+                    if (isDocumento) {
+                        String documento = jRowData.get(DOCUMENTO).getAsString();
+                        PadronDTO padron = padronTmpService.getPadron(documento);
+                        if (padron != null) {
+                            String nombresResponse = "";
+                            if (padron.getApPat() != null) {
+                                nombresResponse += padron.getApPat();
+                            }
+                            if (padron.getApMat() != null) {
+                                nombresResponse += " " + padron.getApMat();
+                            }
+                            if (padron.getNombres() != null) {
+                                nombresResponse += " " + padron.getNombres();
+                            }
+                            if (isNombres) {
+                                if (!nombresResponse.equalsIgnoreCase(jRowData.get("razonSocial").getAsString().trim())) {
+                                    Cell cell = row.getCell(6);
+                                    cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                                    cell.setCellComment(getComentario(cell, nombresResponse));
+                                    validData = false;
+                                    response++;
+                                }
+                            }
+                        } else {
+                            Cell cell = row.getCell(8);
+                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+                            cell.setCellComment(getComentario(cell, Mensajes.M_NOFOUND_DNI));
+                            validData = false;
+                            response++;
+                        }
+                    }
+                }
+            }
+        }
+        return response;
+    }
+
+
+    //------------------------Utilitarios
+    private void xlsx_setComment(Row row, int index, String message){
+        Cell cell = row.getCell(index);
+        cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+        cell.setCellComment(getComentario(cell, message));
+    }
  
 }
