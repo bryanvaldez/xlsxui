@@ -18,6 +18,7 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import pe.gob.onpe.claridadui.Constants.Mensajes;
 import pe.gob.onpe.claridadui.Constants.Validaciones;
+import pe.gob.onpe.claridadui.enums.FormatoEnum;
 import pe.gob.onpe.claridadui.model.DetalleFormato;
 import pe.gob.onpe.claridadui.model.Formato;
 import pe.gob.onpe.claridadui.model.XLSX_DetailAmount;
@@ -90,9 +91,8 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         for (int i = 0; i < jCordinates.size(); i++) {
             JsonObject jCordinate = jCordinates.get(i).getAsJsonObject();            
             if(jCordinate.get("isIndex").getAsBoolean()){
-                getTableIterator(formato, jCordinate);
-                //jResponse.add(jSheetData);                
-                //JsonObject response = getSheetValidIndex(formato, jCordinates, jSheetData);                       
+                getTableIterator(formato, jCordinate);              
+                getSheetValidIndex(formato, jCordinates);                       
                 //jCordinates =  response.get("jCoordinates").getAsJsonArray();                                 
                 System.out.println("Hoja: " +  (jCordinate.get("hoja").getAsInt()) +" | "+detail_table);    
                 
@@ -282,10 +282,10 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             int columna = amount.getColumn();
             double monto = amount.getAmount();  
             if(i==0){
-                calc_ValidAmount(row, columna, monto, sumCol1, detail_row.getValueRow().get(i));
+                calc_ValidAmount(row, columna, monto, sumCol1, detail_row.getValueRow().get(i), Mensajes.M_INVALID_AMOUNT);
 
             }else if(i == 1){
-                calc_ValidAmount(row, columna, monto, sumCol2, detail_row.getValueRow().get(i));                 
+                calc_ValidAmount(row, columna, monto, sumCol2, detail_row.getValueRow().get(i), Mensajes.M_INVALID_AMOUNT);                 
             }                            
         }      
     }
@@ -294,17 +294,17 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             XLSX_DetailAmount amount = detail_row.getAmountRow().get(i);
             int columna = amount.getColumn();
             double monto = amount.getAmount();  
-            calc_ValidAmount(row, columna, monto, sumCol1+sumCol2, detail_row.getValueRow().get(i));
+            calc_ValidAmount(row, columna, monto, sumCol1+sumCol2, detail_row.getValueRow().get(i), Mensajes.M_INVALID_AMOUNT);
         }     
     }  
-    private void calc_ValidAmount(Row row, int columna, double amount1, double amount2, XLSX_DetailCell cellData){   
+    private void calc_ValidAmount(Row row, int columna, double amount1, double amount2, XLSX_DetailCell cellData, String observation){   
         double THRESHOLD = .1;   
         if( !(Math.abs(amount1-amount2)<THRESHOLD) ){
             Cell cell = row.getCell(columna);
             cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-            cell.setCellComment(getComentario(cell, Mensajes.M_INVALID_AMOUNT));                
+            cell.setCellComment(getComentario(cell, observation));                
             cellData.setIsValidCellData(false);
-            cellData.setMessageCellData(Mensajes.M_INVALID_AMOUNT);
+            cellData.setMessageCellData(observation);
         }
     }          
     //-----------------------------Cordenadas
@@ -384,5 +384,98 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         jResponse.addProperty("formato", formato);
         return jResponse;        
     }            
-    
+ 
+    //-----------------------------Validaciones
+    private JsonObject getSheetValidIndex(Formato formato, JsonArray jCordinates){        
+        JsonObject jResponse = new JsonObject();                              
+        if(formato.getId() == FormatoEnum.FORMATO_5.getId()){
+            jResponse = validFormat5(formato, jCordinates);
+        }else if(formato.getId() == FormatoEnum.FORMATO_6.getId()){
+            //jResponse = validFormat6(formato, jCordinates);            
+        }        
+        return jResponse;        
+    }   
+    private JsonObject validFormat5(Formato formato, JsonArray jCordinates){        
+        JsonObject jResponse = new JsonObject();
+        JsonArray jResponseCoordinates = new JsonArray();             
+       
+        double Total5A = 0, Total5B = 0, Total5C = 0;
+                
+        XLSX_DetailCell sheet_5A = new XLSX_DetailCell();
+        XLSX_DetailCell sheet_5B = new XLSX_DetailCell();
+        XLSX_DetailCell sheet_5C = new XLSX_DetailCell();
+        
+        
+        for (int i = 0; i < detail_table.getValueBody().size(); i++) {
+            XLSX_DetailRow indexRow = detail_table.getValueBody().get(i);            
+            for (XLSX_DetailCell detailCell : indexRow.getValueRow()) {                
+                if(detailCell.getLabelCell().equalsIgnoreCase("5A")){
+                    sheet_5A = detailCell;
+                }else if(detailCell.getLabelCell().equalsIgnoreCase("5B")){
+                    sheet_5B = detailCell;
+                }else if(detailCell.getLabelCell().equalsIgnoreCase("5C")){
+                    sheet_5C = detailCell;
+                }                             
+            }                         
+        }                       
+        for (int i = 0; i < jCordinates.size(); i++) {
+            JsonObject jCordinate = jCordinates.get(i).getAsJsonObject();
+            int sheetPosition = jCordinate.get("hoja").getAsInt(); 
+            if(sheetPosition == 1){
+            }else if(sheetPosition == 2 && sheet_5A.isIsValidCellData() && !sheet_5A.isIsEmptyCellData()){
+                jResponseCoordinates.add(jCordinate);
+                Total5A = getTotalBySheet(formato, jCordinate);
+            }else if(sheetPosition == 3 && sheet_5B.isIsValidCellData() && !sheet_5B.isIsEmptyCellData()){
+                jResponseCoordinates.add(jCordinate);
+                Total5B = getTotalBySheet(formato, jCordinate);
+            }else if(sheetPosition == 4 && sheet_5C.isIsValidCellData() && !sheet_5C.isIsEmptyCellData()){
+                jResponseCoordinates.add(jCordinate);
+                Total5C = getTotalBySheet(formato, jCordinate);
+            }                
+        }           
+                
+        XSSFSheet sheet = workbook.getSheetAt(0);         
+        if(sheet_5A.isIsValidCellData() && !sheet_5A.isIsEmptyCellData()){
+            calc_ValidAmount(sheet.getRow(10), 8, Double.parseDouble(sheet_5A.getValueCell()), Total5A, sheet_5A, Mensajes.M_INVALID_AMOUNT_SHEET);
+        }
+        if(sheet_5B.isIsValidCellData() && !sheet_5B.isIsEmptyCellData()){
+            calc_ValidAmount(sheet.getRow(11), 8, Double.parseDouble(sheet_5B.getValueCell()), Total5B, sheet_5B, Mensajes.M_INVALID_AMOUNT_SHEET);    
+        }
+        if(sheet_5C.isIsValidCellData() && !sheet_5C.isIsEmptyCellData()){
+            calc_ValidAmount(sheet.getRow(12), 8, Double.parseDouble(sheet_5C.getValueCell()), Total5C, sheet_5C, Mensajes.M_INVALID_AMOUNT_SHEET);        
+        }        
+        jResponse.add("jCoordinates", jResponseCoordinates);  
+        return jResponse; 
+    }             
+    private double getTotalBySheet(Formato formato, JsonObject jCordinate){
+        double amount = 0;
+        boolean success = true;
+                  
+        if(jCordinate.get("status").getAsBoolean()){
+            int hoja = jCordinate.get("hoja").getAsInt();
+            XSSFSheet sheet = workbook.getSheetAt(hoja-1);
+            int row = jCordinate.get("totalRow").getAsInt();
+            for (DetalleFormato parameter : formato.getDetalle()) {  
+                if(parameter.getHojaExcel() == hoja){
+                    if(parameter.getTipoDato() == Validaciones.T_TOTAL){                        
+                        Row rowTotal = sheet.getRow(row);
+                        Cell cell = rowTotal.getCell(parameter.getColumnaExcel()); 
+                        String valueCell= getValueCell(cell);
+                        String regex = "^\\d+(\\.\\d{1,2})?$";
+                        if(valueCell.equalsIgnoreCase("")){
+                            success = false;
+                        }else{
+                            if (!valueCell.matches(regex)) {
+                                success = false;
+                            }else{
+                                amount = Double.parseDouble(valueCell);
+                            }
+                        }
+                    }                        
+                }
+            }                                               
+        }           
+        return amount;
+    }     
+ 
 }
