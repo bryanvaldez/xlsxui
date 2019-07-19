@@ -92,10 +92,8 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             JsonObject jCordinate = jCordinates.get(i).getAsJsonObject();            
             if(jCordinate.get("isIndex").getAsBoolean()){
                 getTableIterator(formato, jCordinate);              
-                getSheetValidIndex(formato, jCordinates);                       
-                //jCordinates =  response.get("jCoordinates").getAsJsonArray();                                 
-                System.out.println("Hoja: " +  (jCordinate.get("hoja").getAsInt()) +" | "+detail_table);    
-                
+                JsonObject response =getSheetValidIndex(formato, jCordinates);                       
+                jCordinates =  response.get("jCoordinates").getAsJsonArray();                                 
                 for (XLSX_DetailRow row : detail_table.getValueBody()) {
                     for (XLSX_DetailCell xLSX_DetailCell : row.getValueRow()) {
                         System.out.println(xLSX_DetailCell.isIsValidCellData()+" | "+xLSX_DetailCell.getLabelCell()+": "+xLSX_DetailCell.getValueCell()+"------"+xLSX_DetailCell.getMessageCellData());
@@ -447,7 +445,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         jResponse.add("jCoordinates", jResponseCoordinates);  
         return jResponse; 
     }             
-    private double getTotalBySheet(Formato formato, JsonObject jCordinate){
+    private double getTotalBySheet(Formato formato, JsonObject jCordinate){  ///!!!falta validar el monto extraido
         double amount = 0;
         boolean success = true;
                   
