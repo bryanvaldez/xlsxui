@@ -8,11 +8,23 @@ package pe.gob.onpe.claridadui.service.impl;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -109,21 +121,13 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
                         sumCol1+= calc_RowAmount(1); 
                         sumCol2+= calc_RowAmount(2);  
                         if(detail_row.isIsValidRowData()){
-                            valid_CustomFechas(row);
-                            valid_CustomComprobante(row);
-                            valid_CustomPadron(row);
-                        
+//                            valid_CustomFechas(row);
+//                            valid_CustomComprobante(row);
+//                            valid_CustomPadron(row);
+//                            valid_CustomRuc(row);
+//                            valid_CustomDetalle(row);
+//                            valid_CustomAmountUit(row);                        
                         }
-                        
-                        //if(cellData.get("isValidRowData").getAsBoolean()){                       
-                        //CUSTOM VALIDATION -- COLOCAR AQUI VALIDACIONES ADICIONALES
-//                            validCustom_Fechas(row, formato, coordinate, jdata);
-//                            validCustom_Comprobante(row, formato, coordinate, jdata);
-//                            validCustom_Padron(row, formato, coordinate, jdata);
-//                            validCustom_Ruc(row, formato, coordinate, jdata);
-//                            validCustom_Detalle(row, formato, coordinate, jdata);
-//                            validCustom_AmountUit(row, formato, coordinate, jdata);                            
-                        //}  
                         valueBody.add(new XLSX_DetailRow(detail_row));                        
                     }                    
                 }else if(row.getRowNum() == rowSubtotal && rowSubtotal>0){  //Data Subtotal
@@ -540,29 +544,52 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         } catch (Exception e) {
         }
     }
-    private void valid_CustomComprobante(Row row) {
-        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5A")){
-            String currentNumComprobante = "";
-            int currentIndexRow = detail_row.getIndex();        
+    private void valid_CustomComprobante(Row row) {              
+        XLSX_DetailCell detailDocumento = null;
+        XLSX_DetailCell detailNumComprobante = null;
+        XLSX_DetailCell detailTipoComprobante = null;                             
+        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5A")){       
             for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {
                 if(detailCell.getLabelCell().equalsIgnoreCase("comprobante") && !detailCell.isIsEmptyCellData()){  
-                    currentNumComprobante = detailCell.getValueCell();
+                    detailNumComprobante = detailCell;
                 }
-            }                 
-            for (XLSX_DetailRow detailRow : detail_table.getValueBody()) {
-                if(detailRow.getIndex() != currentIndexRow){
-                    for (XLSX_DetailCell detailCell : detailRow.getValueRow()) {
-                        if(detailCell.getLabelCell().equalsIgnoreCase("comprobante") && !detailCell.isIsEmptyCellData()){
-                            if(currentNumComprobante.equalsIgnoreCase(detailCell.getValueCell())){
-                                xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_DUPLICATE_DOC);
-                                detailCell.setIsValidCellData(false);
-                                detailCell.setMessageCellData(Mensajes.M_DUPLICATE_DOC);
-                                detail_row.setIsValidRowData(false);                               
+            }  
+            if(detailNumComprobante != null){
+                for (XLSX_DetailRow detailRow : detail_table.getValueBody()) {
+                    if(detailRow.getIndex() != detail_row.getIndex()){
+                        for (XLSX_DetailCell detailCell : detailRow.getValueRow()) {
+                            if(detailCell.getLabelCell().equalsIgnoreCase("comprobante") && !detailCell.isIsEmptyCellData()){
+                                if(detailNumComprobante.getValueCell().equalsIgnoreCase(detailCell.getValueCell())){
+                                    xlsx_setComment(row, detailNumComprobante.getIndex(), Mensajes.M_DUPLICATE_DOC);
+                                    detailNumComprobante.setIsValidCellData(false);
+                                    detailNumComprobante.setMessageCellData(Mensajes.M_DUPLICATE_DOC);
+                                    detail_row.setIsValidRowData(false);                               
+                                }
                             }
-                        }
-                    }                
-                }
+                        }                
+                    }
+                }                
             }        
+        }else if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-6A")){
+            
+        }else if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-6B")){
+            
+        }else if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-6C")){
+            for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {    
+                if(!detailCell.isIsEmptyCellData()){
+                    if(detailCell.getLabelCell().equalsIgnoreCase("documento")){
+                        detailDocumento = detailCell;
+                    }else if(detailCell.getLabelCell().equalsIgnoreCase("numComprobante")){
+                        detailNumComprobante = detailCell;
+                    }else if(detailCell.getLabelCell().equalsIgnoreCase("tipoComprobante")){
+                        detailTipoComprobante = detailCell;
+                    }                      
+                }
+                if(detailDocumento != null && detailNumComprobante != null && detailTipoComprobante != null ){
+                    
+                }
+            }               
+            
         }
     }    
     private void valid_CustomPadron(Row row) {   
@@ -648,12 +675,203 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
                 }                                 
             }            
         }
+    }
+    private void valid_CustomRuc(Row row) {        
+        String rucResponse = null; 
+        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-6A")){                       
+            for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
+                if(detailCell.getLabelCell().equalsIgnoreCase("ruc") && !detailCell.isIsEmptyCellData()){
+                    boolean isRucConsulta = false;
+                    try {
+                        JsonObject jresponse = (JsonObject) new JsonParser().parse(getUrlService(serviceRuc+detailCell.getValueCell()));     
+                        isRucConsulta = jresponse.get("respuesta").getAsString().equalsIgnoreCase("0");
+                        if(isRucConsulta){
+                            JsonObject jRuc = jresponse.getAsJsonObject("data");
+                            rucResponse = jRuc.get("sRazonSocial").getAsString().trim();
+                        }else{
+                            xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_RUC_NO_FOUND);
+                            detailCell.setIsValidCellData(false);
+                            detailCell.setMessageCellData(Mensajes.M_RUC_NO_FOUND);
+                            detail_row.setIsValidRowData(false);                             
+                        }
+                        
+                    } catch (Exception e) {
+                        System.out.println("Problemas con la de Conexion Servicio RUC.");
+                    }  
+                    break;
+                }                                
+            }            
+            if(rucResponse != null){
+                for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
+                    if(detailCell.getLabelCell().equalsIgnoreCase("razonSocial") && !detailCell.isIsEmptyCellData()){
+                        if (!rucResponse.equalsIgnoreCase(detailCell.getValueCell().trim())) {                                    
+                            xlsx_setCommentReplace(row, detailCell.getIndex(), rucResponse);
+                            detailCell.setIsValidCellData(false);
+                            detailCell.setMessageCellData("Modificar:"+detailCell.getValueCell()+" por "+ rucResponse);
+                            detail_row.setIsValidRowData(false);                                              
+                        }                        
+                        break;
+                    }                                
+                }                 
+            }
+        }else if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-6B") || detail_table.getNameFormat().equalsIgnoreCase("Anexo-6C")){
+            boolean isTipoDocumento = false;
+            for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
+                if(detailCell.getLabelCell().equalsIgnoreCase("tipoDocumento") && !detailCell.isIsEmptyCellData()){
+                    if(Integer.parseInt(detailCell.getValueCell()) == Validaciones.TYPEDOC_RUC){                                                
+                        isTipoDocumento = true;
+                        break;                        
+                    }                                        
+                }                                
+            }            
+            if(isTipoDocumento){
+                for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
+                    if(detailCell.getLabelCell().equalsIgnoreCase("documento") && !detailCell.isIsEmptyCellData()){
+                        boolean isRucConsulta = false;
+                        try {
+                            JsonObject jresponse = (JsonObject) new JsonParser().parse(getUrlService(serviceRuc+detailCell.getValueCell()));     
+                            isRucConsulta = jresponse.get("respuesta").getAsString().equalsIgnoreCase("0");
+                            if(isRucConsulta){
+                                JsonObject jRuc = jresponse.getAsJsonObject("data");
+                                rucResponse = jRuc.get("sRazonSocial").getAsString().trim();
+                            }else{
+                                xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_RUC_NO_FOUND);
+                                detailCell.setIsValidCellData(false);
+                                detailCell.setMessageCellData(Mensajes.M_RUC_NO_FOUND);
+                                detail_row.setIsValidRowData(false);                             
+                            }
+
+                        } catch (Exception e) {
+                            System.out.println("Problemas con la de Conexion Servicio RUC.");
+                        }  
+                        break;
+                    }                                
+                }
+                if(rucResponse != null){
+                    for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
+                        if(detailCell.getLabelCell().equalsIgnoreCase("razonSocial") && !detailCell.isIsEmptyCellData()){
+                            if (!rucResponse.equalsIgnoreCase(detailCell.getValueCell().trim())) {                                    
+                                xlsx_setCommentReplace(row, detailCell.getIndex(), rucResponse);
+                                detailCell.setIsValidCellData(false);
+                                detailCell.setMessageCellData("Modificar:"+detailCell.getValueCell()+" por "+ rucResponse);
+                                detail_row.setIsValidRowData(false);                                              
+                            }                        
+                            break;
+                        }                                
+                    }                 
+                }                
+            }                        
+        }        
+    }    
+    private void valid_CustomDetalle(Row row) {
+        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5A")){            
+            XLSX_DetailCell detailEfectivo = null;
+            XLSX_DetailCell detailEspecie = null;
+            XLSX_DetailCell detailDetalle = null;                        
+            for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {    
+                if(!detailCell.isIsEmptyCellData()){
+                    if(detailCell.getLabelCell().equalsIgnoreCase("montoEfectivo")){
+                        detailEfectivo = detailCell;
+                    }else if(detailCell.getLabelCell().equalsIgnoreCase("montoEspecie")){
+                        detailEspecie = detailCell;
+                    }else if(detailCell.getLabelCell().equalsIgnoreCase("detalle")){
+                        detailDetalle = detailCell;
+                    }                      
+                }                              
+            }                       
+            if(detailEfectivo != null && detailEspecie != null){
+                xlsx_setComment(row, detailEfectivo.getIndex(), Mensajes.M_DUPLICATE_AMOUNT);
+                detailEspecie.setIsValidCellData(false);
+                detailEspecie.setMessageCellData(Mensajes.M_DUPLICATE_AMOUNT);                               
+                xlsx_setComment(row, detailEspecie.getIndex(), Mensajes.M_DUPLICATE_AMOUNT);
+                detailEspecie.setIsValidCellData(false);
+                detailEspecie.setMessageCellData(Mensajes.M_DUPLICATE_AMOUNT);                
+                detail_row.setIsValidRowData(false);                
+            }else {
+                if(detailEfectivo == null && detailEspecie == null){
+                    xlsx_setComment(row, detailEfectivo.getIndex(), Mensajes.M_REQUIRED_AMOUNT);
+                    detailEspecie.setIsValidCellData(false);
+                    detailEspecie.setMessageCellData(Mensajes.M_REQUIRED_AMOUNT);                               
+                    xlsx_setComment(row, detailEspecie.getIndex(), Mensajes.M_REQUIRED_AMOUNT);
+                    detailEspecie.setIsValidCellData(false);
+                    detailEspecie.setMessageCellData(Mensajes.M_REQUIRED_AMOUNT);                
+                    detail_row.setIsValidRowData(false);                       
+                }else{
+                    if(detailEspecie != null &&  detailDetalle == null){
+                        xlsx_setComment(row, detailEspecie.getIndex(), Mensajes.M_REQUIRED_DESC_ESPECIE);
+                        detailEspecie.setIsValidCellData(false);
+                        detailEspecie.setMessageCellData(Mensajes.M_REQUIRED_DESC_ESPECIE);                
+                        detail_row.setIsValidRowData(false);                            
+                    }
+                }
+            }
+        }
     } 
+    private void valid_CustomAmountUit(Row row) {
+        double limiUIT = Validaciones.UIT * 250;
+        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5B")){
+            for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {    
+                if(detailCell.getLabelCell().equalsIgnoreCase("monto") && !detailCell.isIsEmptyCellData()){
+                    if (Double.parseDouble(detailCell.getValueCell()) > limiUIT) {                           
+                        xlsx_setCommentReplace(row, detailCell.getIndex(), Mensajes.M_UIT_EXCEEDED);
+                        detailCell.setIsValidCellData(false);
+                        detailCell.setMessageCellData(Mensajes.M_UIT_EXCEEDED);
+                        detail_row.setIsValidRowData(false);                                              
+                    }                        
+                    break;
+                }                              
+            }            
+        }
+    }  
     //------------------------Utilitarios
     private void xlsx_setComment(Row row, int index, String message){
         Cell cell = row.getCell(index);
         cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
         cell.setCellComment(getComentario(cell, message));
     }
+    private void xlsx_setCommentReplace(Row row, int index, String replace){
+        Cell cell = row.getCell(index);
+        cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+        cell.setCellComment(getComentario(cell, "Modificación:"+cell.getStringCellValue()+" a "+ replace));
+        cell.setCellValue(replace);
+    }    
+    public String getUrlService(String urlName) throws NoSuchAlgorithmException, KeyManagementException {       
+        // Create a trust manager that does not validate certificate chains
+        TrustManager[] trustAllCerts = new TrustManager[] {new X509TrustManager() {
+                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                }
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                }
+            }
+        };  
+        // Install the all-trusting trust manager
+        SSLContext sc = SSLContext.getInstance("SSL");
+        sc.init(null, trustAllCerts, new java.security.SecureRandom());
+        HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory()); 
+        // Create all-trusting host name verifier
+        HostnameVerifier allHostsValid = new HostnameVerifier() {
+            public boolean verify(String hostname, SSLSession session) {
+                return true;
+            }
+        }; 
+        // Install the all-trusting host verifier
+        HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);        
+        String res = null;        
+        try {
+            URL url = new URL(urlName);
+            BufferedReader br = new BufferedReader(new InputStreamReader(url.openStream(), "UTF-8"));
+            res = "";
+            String str = "";
+            while (null != (str = br.readLine())) {
+                res += str;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return res;
+    }    
  
 }
