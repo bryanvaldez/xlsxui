@@ -496,8 +496,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         jSheetData.add("data", dataBody);
         jSheetData.add("dataObs", dataBodyObs);
         return jSheetData;
-    }    
-    
+    }        
     //Validations
     public boolean validExcel_Sheet(XSSFWorkbook workbook, Formato format){
         boolean response = true;        
@@ -518,9 +517,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             response = false;
         }
         return response;
-    }       
-    
-    
+    }               
     //Validaciones Personalizadas
     private void valid_CustomFechas(Row row) {     
         Date rowDate,initDate;
@@ -559,7 +556,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
                             if(currentNumComprobante.equalsIgnoreCase(detailCell.getValueCell())){
                                 xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_DUPLICATE_DOC);
                                 detailCell.setIsValidCellData(false);
-                                detailCell.setMessageCellData(Mensajes.M_INVALID_LIMIT_DATE);
+                                detailCell.setMessageCellData(Mensajes.M_DUPLICATE_DOC);
                                 detail_row.setIsValidRowData(false);                               
                             }
                         }
@@ -568,223 +565,90 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             }        
         }
     }    
-    private void valid_CustomPadron(Row row, Formato formato, JsonObject coordinate, JsonArray jdata) {        
-        String documento = "";
-        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5A")){
+    private void valid_CustomPadron(Row row) {   
+        String documento = "";        
+        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5A") || detail_table.getNameFormat().equalsIgnoreCase("Anexo-5C") ){
+            boolean isPadron = false;                        
             for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
                 if(detailCell.getLabelCell().equalsIgnoreCase("documento") && !detailCell.isIsEmptyCellData()){
                     documento = detailCell.getValueCell();
+                    isPadron = true;
+                    if(!isPadron){
+                        xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_NOFOUND_DNI);
+                        detailCell.setIsValidCellData(false);
+                        detailCell.setMessageCellData(Mensajes.M_NOFOUND_DNI);
+                        detail_row.setIsValidRowData(false);                           
+                    }                    
                     break;
                 }                                
             }
-            
+            if(isPadron){
+                for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
+                    if(detailCell.getLabelCell().equalsIgnoreCase("nombres") && !detailCell.isIsEmptyCellData()){
+                        if(!detailCell.getValueCell().equalsIgnoreCase(detailCell.getValueCell())){
+                            xlsx_setComment(row, detailCell.getIndex(), detailCell.getValueCell());
+                            detailCell.setIsValidCellData(false);
+                            detail_row.setIsValidRowData(false); 
+                        }
+                    }else if(detailCell.getLabelCell().equalsIgnoreCase("apPaterno") && !detailCell.isIsEmptyCellData()){
+                        if(!detailCell.getValueCell().equalsIgnoreCase(detailCell.getValueCell())){
+                            xlsx_setComment(row, detailCell.getIndex(), detailCell.getValueCell());
+                            detailCell.setIsValidCellData(false);
+                            detail_row.setIsValidRowData(false); 
+                        }
+                    }else if(detailCell.getLabelCell().equalsIgnoreCase("apMaterno") && !detailCell.isIsEmptyCellData()){
+                        if(!detailCell.getValueCell().equalsIgnoreCase(detailCell.getValueCell())){
+                            xlsx_setComment(row, detailCell.getIndex(), detailCell.getValueCell());                    
+                            detailCell.setIsValidCellData(false);
+                            detail_row.setIsValidRowData(false); 
+                        }
+                    }                  
+                }            
+            }                
+        }else if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-6B") || detail_table.getNameFormat().equalsIgnoreCase("Anexo-6C")){            
+            String nombresCompletos ="";
+            boolean isTipoDocumento = false;
+            boolean isPadron = false;            
             for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
-                if(detailCell.getLabelCell().equalsIgnoreCase("nombres") && !detailCell.isIsEmptyCellData()){
-                    
-                }else if(detailCell.getLabelCell().equalsIgnoreCase("apPaterno") && !detailCell.isIsEmptyCellData()){
-                    
-                }else if(detailCell.getLabelCell().equalsIgnoreCase("apMaterno") && !detailCell.isIsEmptyCellData()){
-                    
-                }                  
+                if(detailCell.getLabelCell().equalsIgnoreCase("tipoDocumento") && !detailCell.isIsEmptyCellData()){
+                    if(Integer.parseInt(detailCell.getValueCell()) == Validaciones.TYPEDOC_DNI){                                                
+                        isTipoDocumento = true;
+                        break;                        
+                    }                                        
+                }                                
+            }             
+            if(isTipoDocumento){
+                for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
+                    if(detailCell.getLabelCell().equalsIgnoreCase("documento") && !detailCell.isIsEmptyCellData()){
+                        documento = detailCell.getValueCell();
+                        isPadron = true;
+                        if(!isPadron){
+                            xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_NOFOUND_DNI);
+                            detailCell.setIsValidCellData(false);
+                            detailCell.setMessageCellData(Mensajes.M_NOFOUND_DNI);
+                            detail_row.setIsValidRowData(false);                           
+                        }else{
+                            nombresCompletos ="";
+                        }                    
+                        break;
+                    }                                
+                }            
+            }
+            if(isPadron){
+                for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
+                    if(detailCell.getLabelCell().equalsIgnoreCase("razonSocial") && !detailCell.isIsEmptyCellData()){
+                        if(detailCell.getValueCell().equalsIgnoreCase(nombresCompletos)){
+                            xlsx_setComment(row, detailCell.getIndex(),nombresCompletos);
+                            detailCell.setIsValidCellData(false);
+                            detailCell.setMessageCellData(nombresCompletos);
+                            detail_row.setIsValidRowData(false);                           
+                        }                    
+                        break;
+                    }                                
+                }                                 
             }            
-        
         }
-        
-        
-        int response = 0;
-        
-        if (coordinate.get(FORMATO).getAsString().equalsIgnoreCase("Anexo-5A")) {
-            JsonObject jRowData = jdata.get(jdata.size() - 1).getAsJsonObject();
-
-            boolean isDocumento = jRowData.get(DOCUMENTO) != null;
-            boolean isNombres = jRowData.get("nombres") != null;
-            boolean isAppat = jRowData.get("apPaterno") != null;
-            boolean isApmat = jRowData.get("apMaterno") != null;
-
-            if (isDocumento) {
-                String documento = jRowData.get(DOCUMENTO).getAsString();
-                PadronDTO padron = padronTmpService.getPadron(documento);
-                if (padron != null) {
-                    String nombres = padron.getNombres();
-                    String apPaterno = padron.getApPat();
-                    String apMaterno = padron.getApMat();
-                    if (isNombres && nombres != null) {
-                        if (!nombres.equalsIgnoreCase(jRowData.get("nombres").getAsString().trim())) {
-                            Cell cell = row.getCell(6);
-                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                            cell.setCellComment(getComentario(cell, nombres));
-                            validData = false;
-                            response++;
-                        }
-                    }
-                    if (isAppat && apPaterno != null) {
-                        if (!apPaterno.equalsIgnoreCase(jRowData.get("apPaterno").getAsString().trim())) {
-                            Cell cell = row.getCell(4);
-                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                            cell.setCellComment(getComentario(cell, apPaterno));
-                            validData = false;
-                            response++;
-                        }
-                    }
-                    if (isApmat && apMaterno != null) {
-                        if (!apMaterno.equalsIgnoreCase(jRowData.get("apMaterno").getAsString().trim())) {
-                            Cell cell = row.getCell(5);
-                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                            cell.setCellComment(getComentario(cell, apMaterno));
-                            validData = false;
-                            response++;
-                        }
-                    }
-                } else {
-                    Cell cell = row.getCell(7);
-                    cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                    cell.setCellComment(getComentario(cell, Mensajes.M_NOFOUND_DNI));
-                    validData = false;
-                    response++;
-                }
-            }
-        } else if (coordinate.get(FORMATO).getAsString().equalsIgnoreCase("Anexo-5C")) {
-            JsonObject jRowData = jdata.get(jdata.size() - 1).getAsJsonObject();
-
-            boolean isDocumento = jRowData.get(DOCUMENTO) != null;
-            boolean isNombres = jRowData.get("nombres") != null;
-            boolean isAppat = jRowData.get("apPaterno") != null;
-            boolean isApmat = jRowData.get("apMaterno") != null;
-
-            if (isDocumento) {
-                String documento = jRowData.get(DOCUMENTO).getAsString();
-                PadronDTO padron = padronTmpService.getPadron(documento);
-                if (padron != null) {
-                    String nombres = padron.getNombres();
-                    String apPaterno = padron.getApPat();
-                    String apMaterno = padron.getApMat();
-                    if (isNombres && nombres != null) {
-                        if (!nombres.equalsIgnoreCase(jRowData.get("nombres").getAsString().trim())) {
-                            Cell cell = row.getCell(7);
-                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                            cell.setCellComment(getComentario(cell, nombres));
-                            validData = false;
-                            response++;
-                        }
-                    }
-                    if (isAppat && apPaterno != null) {
-                        if (!apPaterno.equalsIgnoreCase(jRowData.get("apPaterno").getAsString().trim())) {
-                            Cell cell = row.getCell(5);
-                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                            cell.setCellComment(getComentario(cell, apPaterno));
-                            validData = false;
-                            response++;
-                        }
-                    }
-                    if (isApmat && apMaterno != null) {
-                        if (!apMaterno.equalsIgnoreCase(jRowData.get("apMaterno").getAsString().trim())) {
-                            Cell cell = row.getCell(6);
-                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                            cell.setCellComment(getComentario(cell, apMaterno));
-                            validData = false;
-                            response++;
-                        }
-                    }
-                } else {
-                    Cell cell = row.getCell(8);
-                    cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                    cell.setCellComment(getComentario(cell, Mensajes.M_NOFOUND_DNI));
-                    validData = false;
-                    response++;
-
-                }
-            }
-        } else if (coordinate.get(FORMATO).getAsString().equalsIgnoreCase("Anexo-6B")) {
-            JsonObject jRowData = jdata.get(jdata.size() - 1).getAsJsonObject();
-
-            boolean isTipoDocumento = jRowData.get("tipoDocumento") != null;
-            boolean isDocumento = jRowData.get(DOCUMENTO) != null;
-            boolean isNombres = jRowData.get("razonSocial") != null;
-
-            if (isTipoDocumento) {
-                int tipoDocumento = jRowData.get("tipoDocumento").getAsInt();
-                if (tipoDocumento == Validaciones.TYPEDOC_DNI) {
-                    if (isDocumento) {
-                        String documento = jRowData.get(DOCUMENTO).getAsString();
-                        PadronDTO padron = padronTmpService.getPadron(documento);
-                        if (padron != null) {
-                            String nombresResponse = "";
-                            if (padron.getApPat() != null) {
-                                nombresResponse += padron.getApPat();
-                            }
-                            if (padron.getApMat() != null) {
-                                nombresResponse += " " + padron.getApMat();
-                            }
-                            if (padron.getNombres() != null) {
-                                nombresResponse += " " + padron.getNombres();
-                            }
-                            if (isNombres) {
-                                if (!nombresResponse.equalsIgnoreCase(jRowData.get("razonSocial").getAsString().trim())) {
-                                    Cell cell = row.getCell(4);
-                                    cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                                    cell.setCellComment(getComentario(cell, nombresResponse));
-                                    validData = false;
-                                    response++;
-                                }
-                            }
-                        } else {
-                            Cell cell = row.getCell(6);
-                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                            cell.setCellComment(getComentario(cell, Mensajes.M_NOFOUND_DNI));
-                            validData = false;
-                            response++;
-                        }
-                    }
-                }
-            }
-        } else if (coordinate.get(FORMATO).getAsString().equalsIgnoreCase("Anexo-6C")) {
-            JsonObject jRowData = jdata.get(jdata.size() - 1).getAsJsonObject();
-
-            boolean isTipoDocumento = jRowData.get("tipoDocumento") != null;
-            boolean isDocumento = jRowData.get(DOCUMENTO) != null;
-            boolean isNombres = jRowData.get("razonSocial") != null;
-
-            if (isTipoDocumento) {
-                int tipoDocumento = jRowData.get("tipoDocumento").getAsInt();
-                if (tipoDocumento == Validaciones.TYPEDOC_DNI) {
-                    if (isDocumento) {
-                        String documento = jRowData.get(DOCUMENTO).getAsString();
-                        PadronDTO padron = padronTmpService.getPadron(documento);
-                        if (padron != null) {
-                            String nombresResponse = "";
-                            if (padron.getApPat() != null) {
-                                nombresResponse += padron.getApPat();
-                            }
-                            if (padron.getApMat() != null) {
-                                nombresResponse += " " + padron.getApMat();
-                            }
-                            if (padron.getNombres() != null) {
-                                nombresResponse += " " + padron.getNombres();
-                            }
-                            if (isNombres) {
-                                if (!nombresResponse.equalsIgnoreCase(jRowData.get("razonSocial").getAsString().trim())) {
-                                    Cell cell = row.getCell(6);
-                                    cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                                    cell.setCellComment(getComentario(cell, nombresResponse));
-                                    validData = false;
-                                    response++;
-                                }
-                            }
-                        } else {
-                            Cell cell = row.getCell(8);
-                            cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
-                            cell.setCellComment(getComentario(cell, Mensajes.M_NOFOUND_DNI));
-                            validData = false;
-                            response++;
-                        }
-                    }
-                }
-            }
-        }
-        return response;
-    }
-
-
+    } 
     //------------------------Utilitarios
     private void xlsx_setComment(Row row, int index, String message){
         Cell cell = row.getCell(index);
