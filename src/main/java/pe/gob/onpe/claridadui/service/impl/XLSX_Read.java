@@ -9,7 +9,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -54,7 +57,8 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
     }
     
     JsonObject jResponseRead = new JsonObject();
-    JsonArray data = new JsonArray();    
+    JsonArray data = new JsonArray();
+    boolean isValidData = true;
     
     XLSX_DetailCell detail_cell = new XLSX_DetailCell();
     XLSX_DetailRow detail_row = new XLSX_DetailRow();   
@@ -67,6 +71,12 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         boolean validExcel = validExcel_Sheet(workbook, formato);        
         if(validExcel){
             data = getSheetsData(formato);
+            if(!isValidData){
+                saveFileObservation(workbook, formato); 
+                System.out.println("[ OBSERVACIONES ]");
+            }else{
+                System.out.println("[ CORRECTO!! ]");
+            }            
         }
         return "ok";
     }       
@@ -90,7 +100,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
                 getTableIterator(formato, jCordinate);
                 jResponse.add(build_Response());
             }
-        }                
+        }                   
         return jResponse;
     }      
     private void getTableIterator(Formato formato, JsonObject coordinate){           
@@ -460,8 +470,11 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
     private JsonObject build_Response(){
         JsonObject jSheetData = new JsonObject();      
         jSheetData.addProperty("nombreFormato", detail_table.getNameFormat());
-        jSheetData.addProperty("registrosIncorrectos", detail_table.getCantValidBody());
-        jSheetData.addProperty("registrosCorrectos", detail_table.getCantInvalidBody());          
+        jSheetData.addProperty("registrosCorrectos", detail_table.getCantValidBody());
+        jSheetData.addProperty("registrosIncorrectos", detail_table.getCantInvalidBody());         
+        if(detail_table.getCantInvalidBody()>0){
+            isValidData = false;
+        }        
         for (XLSX_DetailRow row : detail_table.getValueTotal()) {            
             for (XLSX_DetailCell cellDetail : row.getValueRow()) {
                 JsonObject total = new JsonObject();
@@ -530,7 +543,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {
                 if(detailCell.getLabelCell().equalsIgnoreCase("fecha") && !detailCell.isIsEmptyCellData()){                    
                     rowDate = df.parse(detailCell.getValueCell());
-                    initDate = df.parse("01/01/2018");
+                    initDate = df.parse("01/01/2018");  ///(correccion)  indicar fecha 
                     boolean validate = rowDate.compareTo(initDate) >= 0 && rowDate.compareTo(currentDate) <= 0;
                     if(!validate){
                         xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_INVALID_LIMIT_DATE);
@@ -872,6 +885,23 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             e.printStackTrace();
         }
         return res;
+    }   
+    public void saveFileObservation(XSSFWorkbook workbook, Formato formato) {
+        try {
+            String path = "";            
+            if(formato.getId() == FormatoEnum.FORMATO_5.getId()){
+                path = PATH_OBSERVATION_INCOME;
+            }
+            if(formato.getId() == FormatoEnum.FORMATO_6.getId()){
+                path = PATH_OBSERVATION_EXPENSES;
+            }                        
+            File fileExcelResultado = new File(path);
+            OutputStream outputStream = new FileOutputStream(fileExcelResultado);
+            workbook.write(outputStream);
+            outputStream.close();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
     }    
  
 }
