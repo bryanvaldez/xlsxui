@@ -23,6 +23,7 @@ public class CellStyle {
     
     public XSSFColor COLOR_CELL_ENUM = new XSSFColor(new java.awt.Color(215, 210, 183));    
     public XSSFColor YELLOW_CELL = new XSSFColor(new java.awt.Color(255, 255, 0)); 
+    public XSSFColor ORANGE_CELL = new XSSFColor(new java.awt.Color(255, 192, 0));
         
     public XSSFCellStyle styleSimpleCellObservation(XSSFWorkbook wb, XSSFCellStyle cellStyle) {
         XSSFCellStyle style = wb.createCellStyle();
@@ -35,14 +36,17 @@ public class CellStyle {
         style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         return style;
     }    
-//    public XSSFCellStyle styleCellObservation(XSSFWorkbook wb) {
-//        XSSFCellStyle style = wb.createCellStyle();
-//        style = getBorderThin(style);
-//        style.setFillForegroundColor(YELLOW_CELL);
-//        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-//        return style;
-//    }       
-    
+    public XSSFCellStyle styleSimpleCellObservationReplace(XSSFWorkbook wb, XSSFCellStyle cellStyle) {
+        XSSFCellStyle style = wb.createCellStyle();
+        style.setDataFormat(cellStyle.getDataFormat());    
+        style.setBorderBottom(cellStyle.getBorderBottom()); 
+        style.setBorderTop(cellStyle.getBorderTop());
+        style.setBorderRight(cellStyle.getBorderRight());
+        style.setBorderLeft(cellStyle.getBorderLeft());
+        style.setFillForegroundColor(ORANGE_CELL);
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return style;
+    } 
     public XSSFCellStyle styleCell_Date(XSSFWorkbook wb, int type) {
         CreationHelper createHelper = wb.getCreationHelper();  
         XSSFCellStyle style = wb.createCellStyle();

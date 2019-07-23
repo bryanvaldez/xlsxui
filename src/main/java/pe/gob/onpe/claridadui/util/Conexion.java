@@ -8,6 +8,7 @@ package pe.gob.onpe.claridadui.util;
 import java.sql.Statement;
 import java.sql.CallableStatement;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -21,11 +22,15 @@ public class Conexion {
   	Connection conn;
 	
 	  public Conexion() throws Exception {
-
 		  try{
-
-			  DataSourceConfig dsn = new DataSourceConfig();
-			  //conn = dsn.datasource().getConnection();
+                    Class.forName("oracle.jdbc.driver.OracleDriver"); 
+                    String url = "jdbc:oracle:thin:@192.168.48.30:1485:elecdev2";
+                    String user = "CLARIDAD_PUB";
+                    String password = "CLARIDAD_PUB";        
+                    conn = DriverManager.getConnection(url, user, password);
+                    
+//			  DataSourceConfig dsn = new DataSourceConfig();
+//			  conn = dsn.datasource().getConnection();
 			  
 		  }catch(Exception e){
 			  throw new Exception(e.getMessage());

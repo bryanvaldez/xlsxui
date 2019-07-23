@@ -17,7 +17,6 @@ import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -30,7 +29,6 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -77,6 +75,8 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             }else{
                 System.out.println("[ CORRECTO!! ]");
             }            
+        }else {
+            return "formato incorrecto";
         }
         return "ok";
     }       
@@ -126,19 +126,19 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
                 row = rowIterator.next();                                                                                           
                 if (row.getRowNum() >= rowInitTable && row.getRowNum() <= rowFinTable) { //Data Body
                     getRowIterator(formato, hoja, row, Validaciones.T_TABLE);                    
-                    calc_RowErrors(detail_row);
                     if(detail_row.isIsValidRow()){        
                         sumCol1+= calc_RowAmount(1); 
                         sumCol2+= calc_RowAmount(2);  
                         if(detail_row.isIsValidRowData()){
-//                            valid_CustomFechas(row);
-//                            valid_CustomComprobante(row);
-//                            valid_CustomPadron(row);
-//                            valid_CustomRuc(row);
-//                            valid_CustomDetalle(row);
-//                            valid_CustomAmountUit(row);                        
+                            valid_CustomFechas(row);
+                            valid_CustomComprobante(row);
+                            valid_CustomPadron(row);
+                            valid_CustomRuc(row);
+                            valid_CustomDetalle(row);
+                            valid_CustomAmountUit(row);                        
                         }
-                        valueBody.add(new XLSX_DetailRow(detail_row));                        
+                        calc_RowErrors(detail_row);                        
+                        valueBody.add(new XLSX_DetailRow(detail_row));                         
                     }                    
                 }else if(row.getRowNum() == rowSubtotal && rowSubtotal>0){  //Data Subtotal
                     getRowIterator(formato, hoja, row, Validaciones.T_SUBTOTAL);
@@ -197,7 +197,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         detail_row.setValueRow(currentRow);
         detail_row.setIsValidRow(isValidRow);
         detail_row.setIsValidRowData(isValidRowData);
-        detail_row.setIndex(row.getRowNum());
+        detail_row.setIndex(row.getRowNum());        
     }        
     private void getCellIterator(int position, Cell cell, Formato formato, int typeData){
         boolean isValidCell  = false;
@@ -380,21 +380,17 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         if(formato.getId() == FormatoEnum.FORMATO_5.getId()){
             jResponse = validFormat5(formato, jCordinates);
         }else if(formato.getId() == FormatoEnum.FORMATO_6.getId()){
-            //jResponse = validFormat6(formato, jCordinates);            
+            jResponse = validFormat6(formato, jCordinates);            
         }        
         return jResponse;        
     }   
     private JsonObject validFormat5(Formato formato, JsonArray jCordinates){        
         JsonObject jResponse = new JsonObject();
-        JsonArray jResponseCoordinates = new JsonArray();             
-       
-        double Total5A = 0, Total5B = 0, Total5C = 0;
-                
+        JsonArray jResponseCoordinates = new JsonArray();                    
+        double Total5A = 0, Total5B = 0, Total5C = 0;                
         XLSX_DetailCell sheet_5A = new XLSX_DetailCell();
         XLSX_DetailCell sheet_5B = new XLSX_DetailCell();
-        XLSX_DetailCell sheet_5C = new XLSX_DetailCell();
-        
-        
+        XLSX_DetailCell sheet_5C = new XLSX_DetailCell();                
         for (int i = 0; i < detail_table.getValueBody().size(); i++) {
             XLSX_DetailRow indexRow = detail_table.getValueBody().get(i);            
             for (XLSX_DetailCell detailCell : indexRow.getValueRow()) {                
@@ -411,13 +407,13 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             JsonObject jCordinate = jCordinates.get(i).getAsJsonObject();
             int sheetPosition = jCordinate.get("hoja").getAsInt(); 
             if(sheetPosition == 1){
-            }else if(sheetPosition == 2 && sheet_5A.isIsValidCellData() && !sheet_5A.isIsEmptyCellData()){
+            }else if(sheetPosition == 2 && sheet_5A.isIsValidCellData() && !sheet_5A.isIsEmptyCellData() && !sheet_5A.getValueCell().equalsIgnoreCase("0")){
                 jResponseCoordinates.add(jCordinate);
                 Total5A = getTotalBySheet(formato, jCordinate);
-            }else if(sheetPosition == 3 && sheet_5B.isIsValidCellData() && !sheet_5B.isIsEmptyCellData()){
+            }else if(sheetPosition == 3 && sheet_5B.isIsValidCellData() && !sheet_5B.isIsEmptyCellData() && !sheet_5B.getValueCell().equalsIgnoreCase("0")){
                 jResponseCoordinates.add(jCordinate);
                 Total5B = getTotalBySheet(formato, jCordinate);
-            }else if(sheetPosition == 4 && sheet_5C.isIsValidCellData() && !sheet_5C.isIsEmptyCellData()){
+            }else if(sheetPosition == 4 && sheet_5C.isIsValidCellData() && !sheet_5C.isIsEmptyCellData() && !sheet_5C.getValueCell().equalsIgnoreCase("0")){
                 jResponseCoordinates.add(jCordinate);
                 Total5C = getTotalBySheet(formato, jCordinate);
             }                
@@ -435,7 +431,54 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         }        
         jResponse.add("jCoordinates", jResponseCoordinates);  
         return jResponse; 
-    }             
+    }
+    private JsonObject validFormat6(Formato formato, JsonArray jCordinates){             
+        JsonObject jResponse = new JsonObject();
+        JsonArray jResponseCoordinates = new JsonArray();                    
+        double Total6A = 0, Total6B = 0, Total6C = 0;                
+        XLSX_DetailCell sheet_6A = new XLSX_DetailCell();
+        XLSX_DetailCell sheet_6B = new XLSX_DetailCell();
+        XLSX_DetailCell sheet_6C = new XLSX_DetailCell();            
+        for (int i = 0; i < detail_table.getValueBody().size(); i++) {
+            XLSX_DetailRow indexRow = detail_table.getValueBody().get(i);            
+            for (XLSX_DetailCell detailCell : indexRow.getValueRow()) {                
+                if(detailCell.getLabelCell().equalsIgnoreCase("6A")){
+                    sheet_6A = detailCell;
+                }else if(detailCell.getLabelCell().equalsIgnoreCase("6B")){
+                    sheet_6B = detailCell;
+                }else if(detailCell.getLabelCell().equalsIgnoreCase("6C")){
+                    sheet_6C = detailCell;
+                }                             
+            }                         
+        }        
+        for (int i = 0; i < jCordinates.size(); i++) {
+            JsonObject jCordinate = jCordinates.get(i).getAsJsonObject();
+            int sheetPosition = jCordinate.get("hoja").getAsInt(); 
+            if(sheetPosition == 1){
+            }else if(sheetPosition == 2 && sheet_6A.isIsValidCellData() && !sheet_6A.isIsEmptyCellData() && !sheet_6A.getValueCell().equalsIgnoreCase("0")){
+                jResponseCoordinates.add(jCordinate);
+                Total6A = getTotalBySheet(formato, jCordinate);
+            }else if(sheetPosition == 3 && sheet_6B.isIsValidCellData() && !sheet_6B.isIsEmptyCellData() && !sheet_6B.getValueCell().equalsIgnoreCase("0")){
+                jResponseCoordinates.add(jCordinate);
+                Total6B = getTotalBySheet(formato, jCordinate);
+            }else if(sheetPosition == 4 && sheet_6C.isIsValidCellData() && !sheet_6C.isIsEmptyCellData() && !sheet_6C.getValueCell().equalsIgnoreCase("0")){
+                jResponseCoordinates.add(jCordinate);
+                Total6C = getTotalBySheet(formato, jCordinate);
+            }                
+        }                
+        XSSFSheet sheet = workbook.getSheetAt(0);         
+        if(sheet_6A.isIsValidCellData() && !sheet_6A.isIsEmptyCellData()){
+            calc_ValidAmount(sheet.getRow(10), 8, Double.parseDouble(sheet_6A.getValueCell()), Total6A, sheet_6A, Mensajes.M_INVALID_AMOUNT_SHEET);
+        }
+        if(sheet_6B.isIsValidCellData() && !sheet_6B.isIsEmptyCellData()){
+            calc_ValidAmount(sheet.getRow(11), 8, Double.parseDouble(sheet_6B.getValueCell()), Total6B, sheet_6B, Mensajes.M_INVALID_AMOUNT_SHEET);    
+        }
+        if(sheet_6C.isIsValidCellData() && !sheet_6C.isIsEmptyCellData()){
+            calc_ValidAmount(sheet.getRow(12), 8, Double.parseDouble(sheet_6C.getValueCell()), Total6C, sheet_6C, Mensajes.M_INVALID_AMOUNT_SHEET);        
+        }        
+        jResponse.add("jCoordinates", jResponseCoordinates);  
+        return jResponse;      
+    }    
     private double getTotalBySheet(Formato formato, JsonObject jCordinate){  ///!!!falta validar el monto extraido
         double amount = 0;
         boolean success = true;
@@ -471,7 +514,9 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         JsonObject jSheetData = new JsonObject();      
         jSheetData.addProperty("nombreFormato", detail_table.getNameFormat());
         jSheetData.addProperty("registrosCorrectos", detail_table.getCantValidBody());
-        jSheetData.addProperty("registrosIncorrectos", detail_table.getCantInvalidBody());         
+        System.out.println("DATA Valida: " + detail_table.getCantValidBody());
+        jSheetData.addProperty("registrosIncorrectos", detail_table.getCantInvalidBody());  
+        System.out.println("DATA Invalida: " + detail_table.getCantInvalidBody());
         if(detail_table.getCantInvalidBody()>0){
             isValidData = false;
         }        
@@ -498,14 +543,17 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         }  
         JsonArray dataBody = new JsonArray();
         JsonArray dataBodyObs = new JsonArray();
-        for (XLSX_DetailRow row : detail_table.getValueBody()) {
+        for (XLSX_DetailRow row : detail_table.getValueBody()) {                        
             JsonObject rowBody = new JsonObject();
             JsonObject rowBodyObs = new JsonObject();
-            rowBody.addProperty("estado", row.isIsValidRowData());            
+            rowBody.addProperty("estado", row.isIsValidRowData());  
+            String json = row.isIsValidRowData()+ "|";            
             for (XLSX_DetailCell cellDetail : row.getValueRow()) {
                 rowBody.addProperty(cellDetail.getLabelCell(), cellDetail.getValueCell());
                 rowBodyObs.addProperty(cellDetail.getLabelCell(), cellDetail.getMessageCellData());
+                json += cellDetail.getValueCell()+" | ";
             }
+            System.out.println(json);            
             dataBody.add(rowBody);
             dataBodyObs.add(rowBodyObs);
         }                
@@ -520,7 +568,12 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         int countSheetValid = 0;
         JsonArray formatSheets = new JsonParser().parse(format.getDetalleHoja()).getAsJsonArray();
         for (int i = 0; i < formatSheets.size(); i++) {
-            JsonObject formatSheet = formatSheets.get(i).getAsJsonObject();
+            JsonObject formatSheet = formatSheets.get(i).getAsJsonObject();            
+            for (int j = 0; j < workbook.getNumberOfSheets(); j++) {
+                if(workbook.getSheetName(j).equalsIgnoreCase("Mozart Reports")){
+                    workbook.removeSheetAt(j);
+                }
+            }                        
             for (int j = 0; j < workbook.getNumberOfSheets(); j++) {
                 if (formatSheet.get("descripcion").getAsString().equalsIgnoreCase(workbook.getSheetName(j))) {
                     countSheetValid++;
@@ -606,13 +659,17 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         }
     }    
     private void valid_CustomPadron(Row row) {   
-        String documento = "";        
-        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5A") || detail_table.getNameFormat().equalsIgnoreCase("Anexo-5C") ){
-            boolean isPadron = false;                        
+        JsonObject response = new JsonObject();       
+        boolean isPadron = false;
+        if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-5A") || detail_table.getNameFormat().equalsIgnoreCase("Anexo-5C") ){                      
             for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
                 if(detailCell.getLabelCell().equalsIgnoreCase("documento") && !detailCell.isIsEmptyCellData()){
-                    documento = detailCell.getValueCell();
-                    isPadron = true;
+                    try {
+                        JsonObject jresponse = (JsonObject) new JsonParser().parse(getUrlService(pathServer+"/carga/getPadron/"+detailCell.getValueCell()+"/"+token)); 
+                        isPadron = jresponse.get("success").getAsBoolean();
+                        response = jresponse.get("data").getAsJsonObject();                        
+                    } catch (Exception e) {
+                    }
                     if(!isPadron){
                         xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_NOFOUND_DNI);
                         detailCell.setIsValidCellData(false);
@@ -625,30 +682,34 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             if(isPadron){
                 for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
                     if(detailCell.getLabelCell().equalsIgnoreCase("nombres") && !detailCell.isIsEmptyCellData()){
-                        if(!detailCell.getValueCell().equalsIgnoreCase(detailCell.getValueCell())){
-                            xlsx_setComment(row, detailCell.getIndex(), detailCell.getValueCell());
+                        String nombres = response.get("nombres")!= null?response.get("nombres").getAsString().trim():"";
+                        if(!detailCell.getValueCell().trim().equalsIgnoreCase(nombres)){
+                            xlsx_setCommentReplace(row, detailCell.getIndex(), nombres);
                             detailCell.setIsValidCellData(false);
+                            detailCell.setMessageCellData(nombres);
                             detail_row.setIsValidRowData(false); 
                         }
                     }else if(detailCell.getLabelCell().equalsIgnoreCase("apPaterno") && !detailCell.isIsEmptyCellData()){
-                        if(!detailCell.getValueCell().equalsIgnoreCase(detailCell.getValueCell())){
-                            xlsx_setComment(row, detailCell.getIndex(), detailCell.getValueCell());
+                        String apPat = response.get("apPat")!= null?response.get("apPat").getAsString().trim():"";
+                        if(!detailCell.getValueCell().trim().equalsIgnoreCase(apPat)){
+                            xlsx_setCommentReplace(row, detailCell.getIndex(), apPat);                            
                             detailCell.setIsValidCellData(false);
+                            detailCell.setMessageCellData(apPat);
                             detail_row.setIsValidRowData(false); 
                         }
                     }else if(detailCell.getLabelCell().equalsIgnoreCase("apMaterno") && !detailCell.isIsEmptyCellData()){
-                        if(!detailCell.getValueCell().equalsIgnoreCase(detailCell.getValueCell())){
-                            xlsx_setComment(row, detailCell.getIndex(), detailCell.getValueCell());                    
+                        String apMat = response.get("apMat")!= null?response.get("apMat").getAsString().trim():"";
+                        if(!detailCell.getValueCell().trim().equalsIgnoreCase(apMat)){
+                            xlsx_setCommentReplace(row, detailCell.getIndex(), apMat);                                               
                             detailCell.setIsValidCellData(false);
+                            detailCell.setMessageCellData(apMat);
                             detail_row.setIsValidRowData(false); 
                         }
                     }                  
                 }            
             }                
         }else if(detail_table.getNameFormat().equalsIgnoreCase("Anexo-6B") || detail_table.getNameFormat().equalsIgnoreCase("Anexo-6C")){            
-            String nombresCompletos ="";
-            boolean isTipoDocumento = false;
-            boolean isPadron = false;            
+            boolean isTipoDocumento = false;           
             for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
                 if(detailCell.getLabelCell().equalsIgnoreCase("tipoDocumento") && !detailCell.isIsEmptyCellData()){
                     if(Integer.parseInt(detailCell.getValueCell()) == Validaciones.TYPEDOC_DNI){                                                
@@ -660,15 +721,18 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             if(isTipoDocumento){
                 for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
                     if(detailCell.getLabelCell().equalsIgnoreCase("documento") && !detailCell.isIsEmptyCellData()){
-                        documento = detailCell.getValueCell();
+                        try {
+                            JsonObject jresponse = (JsonObject) new JsonParser().parse(getUrlService(pathServer+"/carga/getPadron/"+detailCell.getValueCell())); 
+                            isPadron = jresponse.get("success").getAsBoolean();
+                            response = jresponse.get("data").getAsJsonObject();                               
+                        } catch (Exception e) {
+                        }
                         isPadron = true;
                         if(!isPadron){
                             xlsx_setComment(row, detailCell.getIndex(), Mensajes.M_NOFOUND_DNI);
                             detailCell.setIsValidCellData(false);
                             detailCell.setMessageCellData(Mensajes.M_NOFOUND_DNI);
                             detail_row.setIsValidRowData(false);                           
-                        }else{
-                            nombresCompletos ="";
                         }                    
                         break;
                     }                                
@@ -677,7 +741,12 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             if(isPadron){
                 for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
                     if(detailCell.getLabelCell().equalsIgnoreCase("razonSocial") && !detailCell.isIsEmptyCellData()){
-                        if(detailCell.getValueCell().equalsIgnoreCase(nombresCompletos)){
+                        String nombres = response.get("nombres")!= null?response.get("nombres").getAsString().trim():"";
+                        String apPat = response.get("apPat")!= null?response.get("apPat").getAsString().trim():"";
+                        String apMat = response.get("apMat")!= null?response.get("apMat").getAsString().trim():"";
+                        String nombresCompletos = nombres +" "+ apPat +" "+ apMat;    
+                        String nombresDoc = detailCell.getValueCell().replace("  ", " ").trim();                        
+                        if(nombresDoc.equalsIgnoreCase(nombresCompletos.trim())){
                             xlsx_setComment(row, detailCell.getIndex(),nombresCompletos);
                             detailCell.setIsValidCellData(false);
                             detailCell.setMessageCellData(nombresCompletos);
@@ -844,7 +913,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
     }
     private void xlsx_setCommentReplace(Row row, int index, String replace){
         Cell cell = row.getCell(index);
-        cell.setCellStyle(styleSimpleCellObservation(workbook, (XSSFCellStyle) cell.getCellStyle()));
+        cell.setCellStyle(styleSimpleCellObservationReplace(workbook, (XSSFCellStyle) cell.getCellStyle()));
         cell.setCellComment(getComentario(cell, "Modificación:"+cell.getStringCellValue()+" a "+ replace));
         cell.setCellValue(replace);
     }    

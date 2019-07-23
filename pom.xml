@@ -38,7 +38,12 @@
             <groupId>com.itextpdf</groupId>
             <artifactId>itextpdf</artifactId>
             <version>5.0.6</version>
-        </dependency>  
+        </dependency>
+<!--        <dependency>
+            <groupId>oracle.jdbc</groupId>
+            <artifactId>ojdbc</artifactId>
+            <version>14</version>
+        </dependency>          -->
     </dependencies>
     <name>claridadUI</name>      
 </project>

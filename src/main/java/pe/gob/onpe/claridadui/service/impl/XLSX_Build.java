@@ -16,6 +16,7 @@ import pe.gob.onpe.claridadui.util.ExcelUtil;
  */
 public class XLSX_Build extends ExcelUtil{
     
+    public String token = java.util.Base64.getUrlEncoder().encodeToString("0NP3_CL4R1D4D".getBytes());    
     public final XSSFWorkbook workbook;
     public final int typeFormat;
     public final String serviceRuc;
