@@ -21,19 +21,21 @@ public class XLSX_Build extends ExcelUtil{
     public final int typeFormat;
     public final String serviceRuc;
     public final String pathServer;
+    public final String pathObs;
     public final int codeOrganization;
     public final int codeCandidate;
     public final DateFormat df = new SimpleDateFormat("dd/MM/yyyy");
     public static final String PATH_OBSERVATION_INCOME = "D:\\CLARIDAD3\\OBSERVACIONES\\INGRESOS\\prueba.xlsx";
     public static final String PATH_OBSERVATION_EXPENSES = "D:\\CLARIDAD3\\OBSERVACIONES\\GASTOS\\prueba.xlsx";    
         
-    public XLSX_Build(XSSFWorkbook workbook, int typeFormat, String serviceRuc, String pathServer, int codeOrganization, int codeCandidate){
+    public XLSX_Build(XSSFWorkbook workbook, int typeFormat, String serviceRuc, String pathServer, int codeOrganization, int codeCandidate, String pathObs){
         this.workbook = workbook;
         this.typeFormat = typeFormat;
         this.serviceRuc = serviceRuc;
         this.pathServer  = pathServer;        
         this.codeOrganization = codeOrganization;   
         this.codeCandidate = codeCandidate;
+        this.pathObs = pathObs;
     }
     
     

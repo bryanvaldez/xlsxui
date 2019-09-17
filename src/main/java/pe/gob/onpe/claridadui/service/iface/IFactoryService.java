@@ -17,5 +17,5 @@ public interface IFactoryService {
     public IExcelExportService exportExcelXSSF(int type, String pathFormato, int candidato);    
     public IPdfExportService exportPdf(String path, int candidato);
     
-    public IExcelXSSFValidatorService readerXSSF(XSSFWorkbook workbook, int typeFormat, String serviceRuc, String pathServer, int codeOrganization, int codeCandidate);      
+    public IExcelXSSFValidatorService readerXSSF(XSSFWorkbook workbook, int typeFormat, String serviceRuc, String pathServer, int codeOrganization, int codeCandidate, String pathObs);      
 }

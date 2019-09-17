@@ -5,10 +5,12 @@
  */
 package pe.gob.onpe.claridadui.service.iface;
 
+import com.google.gson.JsonObject;
+
 /**
  *
  * @author bvaldez
  */
 public interface IExcelXSSFValidatorService {
-    public String validate();
+    public JsonObject validate();
 }

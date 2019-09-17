@@ -29,7 +29,13 @@ public class Validaciones {
     
     public static final int TYPEDOC_DNI = 1;  
     public static final int TYPEDOC_RUC = 2;  
-    public static final int TYPEDOC_ETC = 3;          
+    public static final int TYPEDOC_ETC = 3;       
+    
+    public static final int N_STATUS = 0;
+    public static final int N_STATUS_OK = 1;    
+    
+    public static final int TYPE_APORTE_EFECTIVO = 2; 
+    public static final int TYPE_APORTE_ESPECIE = 1;      
     
     
     public static final String MONTO = "^\\d+(\\.\\d{1,2})?$";     

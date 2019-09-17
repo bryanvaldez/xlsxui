@@ -50,8 +50,8 @@ import pe.gob.onpe.claridadui.service.iface.IFormatoService;
  */
 public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
     
-    public XLSX_Read(XSSFWorkbook workbook, int typeFormat, String serviceRuc, String pathServer, int codeOrganization, int codeCandidate) {
-        super(workbook, typeFormat, serviceRuc, pathServer, codeOrganization, codeCandidate);
+    public XLSX_Read(XSSFWorkbook workbook, int typeFormat, String serviceRuc, String pathServer, int codeOrganization, int codeCandidate, String pathObs) {
+        super(workbook, typeFormat, serviceRuc, pathServer, codeOrganization, codeCandidate, pathObs);
     }
     
     JsonObject jResponseRead = new JsonObject();
@@ -63,22 +63,22 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
     XLSX_DetailTable detail_table = new XLSX_DetailTable();    
     
     @Override
-    public String validate(){
+    public JsonObject validate(){
         IFormatoService factory  = new FormatoService();
         Formato formato = factory.getFormato(typeFormat);         
         boolean validExcel = validExcel_Sheet(workbook, formato);        
         if(validExcel){
             data = getSheetsData(formato);
+            jResponseRead.add("data", data);
             if(!isValidData){
                 saveFileObservation(workbook, formato); 
                 System.out.println("[ OBSERVACIONES ]");
             }else{
                 System.out.println("[ CORRECTO!! ]");
             }            
-        }else {
-            return "formato incorrecto";
         }
-        return "ok";
+        jResponseRead.addProperty("validData", isValidData);
+        return jResponseRead;
     }       
     ///--------------------------------Iterators
     private JsonArray getSheetsData(Formato formato){        
@@ -137,7 +137,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
                             valid_CustomDetalle(row);
                             valid_CustomAmountUit(row);                        
                         }
-                        calc_RowErrors(detail_row);                        
+                        calc_Body(detail_row);                        
                         valueBody.add(new XLSX_DetailRow(detail_row));                         
                     }                    
                 }else if(row.getRowNum() == rowSubtotal && rowSubtotal>0){  //Data Subtotal
@@ -288,9 +288,12 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             cell.setCellComment(getComentario(cell, observation));                
             cellData.setIsValidCellData(false);
             cellData.setMessageCellData(observation);
+            detail_row.setIsValidRowData(false);
+            detail_table.setIsInvalidCalc(true);
         }
     }
-    private void calc_RowErrors(XLSX_DetailRow detailRow){
+    private void calc_Body(XLSX_DetailRow detailRow){
+        detail_table.setCantBody(detail_table.getCantBody()+1);
         if(detailRow.isIsValidRowData()){
             detail_table.setCantValidBody(detail_table.getCantValidBody()+1);
         }else{
@@ -513,9 +516,12 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
     private JsonObject build_Response(){
         JsonObject jSheetData = new JsonObject();      
         jSheetData.addProperty("nombreFormato", detail_table.getNameFormat());
+        jSheetData.addProperty("registros", detail_table.getCantBody());
         jSheetData.addProperty("registrosCorrectos", detail_table.getCantValidBody());
-        System.out.println("DATA Valida: " + detail_table.getCantValidBody());
-        jSheetData.addProperty("registrosIncorrectos", detail_table.getCantInvalidBody());  
+        jSheetData.addProperty("registrosIncorrectos", detail_table.getCantInvalidBody());
+        jSheetData.addProperty("invalidCalc", detail_table.isIsInvalidCalc());
+        
+        System.out.println("DATA Valida: " + detail_table.getCantValidBody());        
         System.out.println("DATA Invalida: " + detail_table.getCantInvalidBody());
         if(detail_table.getCantInvalidBody()>0){
             isValidData = false;
@@ -585,6 +591,9 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
             jResponseRead.addProperty("validExcel", Boolean.FALSE);
             jResponseRead.addProperty("msjValidExcel", Mensajes.M_INVALID_EXCEL);
             response = false;
+        }else{
+            jResponseRead.addProperty("validExcel", true);
+            jResponseRead.addProperty("msjValidExcel", "");            
         }
         return response;
     }               
@@ -722,7 +731,7 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
                 for (XLSX_DetailCell detailCell : detail_row.getValueRow()) {                
                     if(detailCell.getLabelCell().equalsIgnoreCase("documento") && !detailCell.isIsEmptyCellData()){
                         try {
-                            JsonObject jresponse = (JsonObject) new JsonParser().parse(getUrlService(pathServer+"/carga/getPadron/"+detailCell.getValueCell())); 
+                            JsonObject jresponse = (JsonObject) new JsonParser().parse(getUrlService(pathServer+"/carga/getPadron/"+detailCell.getValueCell()+"/"+token)); 
                             isPadron = jresponse.get("success").getAsBoolean();
                             response = jresponse.get("data").getAsJsonObject();                               
                         } catch (Exception e) {
@@ -959,10 +968,10 @@ public class XLSX_Read extends XLSX_Build implements IExcelXSSFValidatorService{
         try {
             String path = "";            
             if(formato.getId() == FormatoEnum.FORMATO_5.getId()){
-                path = PATH_OBSERVATION_INCOME;
+                path = pathObs + "FORMATOS/OBSERVACIONES/F5_Errores_INGRESOS_" + codeOrganization + ".xlsx";
             }
             if(formato.getId() == FormatoEnum.FORMATO_6.getId()){
-                path = PATH_OBSERVATION_EXPENSES;
+                path = pathObs + "FORMATOS/OBSERVACIONES/F6_Errores_EGRESOS_" + codeOrganization + ".xlsx";
             }                        
             File fileExcelResultado = new File(path);
             OutputStream outputStream = new FileOutputStream(fileExcelResultado);

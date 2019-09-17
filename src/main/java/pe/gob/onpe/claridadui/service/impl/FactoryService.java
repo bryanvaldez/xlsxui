@@ -34,8 +34,8 @@ public class FactoryService implements IFactoryService{
     }
 
     @Override
-    public IExcelXSSFValidatorService readerXSSF(XSSFWorkbook workbook, int typeFormat, String serviceRuc, String pathServer, int codeOrganization, int codeCandidate) {
-        return new XLSX_Read(workbook, typeFormat, serviceRuc, pathServer, codeOrganization, codeCandidate);
+    public IExcelXSSFValidatorService readerXSSF(XSSFWorkbook workbook, int typeFormat, String serviceRuc, String pathServer, int codeOrganization, int codeCandidate, String pathObs) {
+        return new XLSX_Read(workbook, typeFormat, serviceRuc, pathServer, codeOrganization, codeCandidate,pathObs);
     }
 
 }

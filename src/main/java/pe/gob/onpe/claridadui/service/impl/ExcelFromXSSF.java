@@ -51,7 +51,7 @@ public class ExcelFromXSSF extends ExcelValidator implements IExcelXSSFValidator
     }
 
     @Override
-    public String validate() {
+    public JsonObject validate() {
         JsonObject jResponse = new JsonObject();
 
         JsonArray data = new JsonArray();
@@ -77,7 +77,7 @@ public class ExcelFromXSSF extends ExcelValidator implements IExcelXSSFValidator
         jResponse.addProperty("validExcel", validExcel);        
         jResponse.addProperty("msjValidExcel", msjValidExcel);
         jResponse.add("data", data);                         
-        return new Gson().toJson(jResponse.get("data"));
+        return jResponse;
     }
    
     //-----------------------------------------------------------Step 
